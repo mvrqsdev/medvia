@@ -369,6 +369,7 @@ const messages = {
 			messageOptionsMenu: {
 				delete: "Borrar",
 				reply: "Responder",
+				toFoward: "Encaminhar",
 				confirmationModal: {
 					title: "¿Borrar mensaje?",
 					message: "Esta acción no puede ser revertida.",

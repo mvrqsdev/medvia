@@ -135,14 +135,14 @@ const Login = () => {
 					</Button>
 					{ <Grid container>
 						<Grid item>
-							<Link
+							{/* <Link
 								href="#"
 								variant="body2"
 								component={RouterLink}
 								to="/signup"
 							>
 								{i18n.t("login.buttons.register")}
-							</Link>
+							</Link> */}
 						</Grid>
 					</Grid> }
 				</form>

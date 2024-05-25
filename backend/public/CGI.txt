@@ -1,0 +1,29 @@
+-- Protocolo
+ECG
+Sinais Vitais
+Coleta
+Questionario
+Ordem
+
+
+
+ID       Nome do Protocolo     Tem ECG ?       ECG         Sinais Vitais    Coleta    Questionario ?         Questionario      Ordem
+0001       Inside                Sim           Simples     Pré e Pos        Sim       Sim                    Tablet            Questionario + ECG + Sinais Vitais e Coleta
+
+
+
+
+
+
+
+-- Paciente
+ID          Nome do Paciente      Questionario de Alergia        Identidade          Protocolo      CID        Data que Iniciou      Ativo
+0001         Joaozinho             Sim                            Sim                0001           C61            03/04/2024            Sim
+
+
+
+
+
+--- Cronograma
+ID       ID PACIENTE    DIA QUE ELE VAI VIR     DATA/HORA QUE ELE VAI VIR
+AKAS     0001           D1                       09/04/2024 09:00

@@ -8,7 +8,6 @@ import {
 } from "formik";
 import { toast } from "react-toastify";
 
-import { green } from "@material-ui/core/colors";
 import {
 	Button,
 	Dialog,
@@ -25,10 +24,13 @@ import {
 	InputAdornment,
 	IconButton
 } from '@material-ui/core';
+
 import { 
 	Visibility, 
 	VisibilityOff 
 } from '@material-ui/icons';
+
+import { green } from "@material-ui/core/colors";
 
 import { i18n } from "../../translate/i18n";
 
@@ -37,11 +39,11 @@ import toastError from "../../errors/toastError";
 import QueueSelect from "../QueueSelect";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { Can } from "../Can";
-
 import useWhatsApps from "../../hooks/useWhatsApps";
 
 const useStyles = makeStyles(theme => ({
 	root: {
+		backgroundColor: theme.palette.background.paper,
 		display: "flex",
 		flexWrap: "wrap",
 	},
@@ -51,11 +53,9 @@ const useStyles = makeStyles(theme => ({
 			marginRight: theme.spacing(1),
 		},
 	},
-
 	btnWrapper: {
 		position: "relative",
 	},
-
 	buttonProgress: {
 		color: green[500],
 		position: "absolute",
@@ -188,13 +188,13 @@ const UserModal = ({ open, onClose, userId }) => {
 									/>
 									<Field
 										as={TextField}
-										label={i18n.t("userModal.form.password")}
-										type="password"
 										name="password"
-										error={touched.password && Boolean(errors.password)}
-										helperText={touched.password && errors.password}
 										variant="outlined"
 										margin="dense"
+										label={i18n.t("userModal.form.password")}
+										error={touched.password && Boolean(errors.password)}
+										helperText={touched.password && errors.password}
+										type={showPassword ? 'text' : 'password'}
 										InputProps={{
 											endAdornment: (
 												<InputAdornment position="end">
@@ -243,12 +243,8 @@ const UserModal = ({ open, onClose, userId }) => {
 														id="profile-selection"
 														required
 													>
-														<MenuItem value="admin">Admin</MenuItem>
-														<MenuItem value="coordenador">Coordenador</MenuItem>
-														<MenuItem value="supervisor">Supervisor</MenuItem>
-														<MenuItem value="suporte">Suporte</MenuItem>
-														<MenuItem value="medico">Medico</MenuItem>
-														<MenuItem value="user">User</MenuItem>
+														<MenuItem value="admin">{i18n.t("userModal.form.admin")}</MenuItem>
+														<MenuItem value="user">{i18n.t("userModal.form.user")}</MenuItem>
 													</Field>
 												</>
 											)}

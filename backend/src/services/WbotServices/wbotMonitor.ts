@@ -36,7 +36,7 @@ const wbotMonitor = async (
 
       if (content.tag === "offer") {
         const { from, id } = node.attrs;
-        //console.log(`${from} is calling you with id ${id}`);
+        ////console.log(`${from} is calling you with id ${id}`);
       }
 
       if (content.tag === "terminate") {
@@ -44,64 +44,67 @@ const wbotMonitor = async (
           where: { key: "call", companyId },
         });
 
-        if (sendMsgCall.value === "disabled") {
-          await wbot.sendMessage(node.attrs.from, {
-            text:
-              "*Mensagem Automática:*\n\nAs chamadas de voz e vídeo estão desabilitas para esse WhatsApp, favor enviar uma mensagem de texto. Obrigado",
-          });
-
-          const number = node.attrs.from.replace(/\D/g, "");
-
-          const contact = await Contact.findOne({
-            where: { companyId, number },
-          });
-
-          const ticket = await Ticket.findOne({
-            where: {
-              contactId: contact.id,
-              whatsappId: wbot.id,
-              //status: { [Op.or]: ["close"] },
-              companyId
-            },
-          });
-          // se não existir o ticket não faz nada.
-          if (!ticket) return;
-
-          const date = new Date();
-          const hours = date.getHours();
-          const minutes = date.getMinutes();
-
-          const body = `Chamada de voz/vídeo perdida às ${hours}:${minutes}`;
-          const messageData = {
-            id: content.attrs["call-id"],
-            ticketId: ticket.id,
-            contactId: contact.id,
-            body,
-            fromMe: false,
-            mediaType: "call_log",
-            read: true,
-            quotedMsgId: null,
-            ack: 1,
-          };
-
-          await ticket.update({
-            lastMessage: body,
-          });
+        if(sendMsgCall){
           
-
-          if(ticket.status === "closed") {
-            await ticket.update({
-              status: "pending",
+          if (sendMsgCall.value === "disabled") {
+            await wbot.sendMessage(node.attrs.from, {
+              text:
+                "*Mensagem Automática:*\n\nAs chamadas de voz e vídeo estão desabilitas para esse WhatsApp, favor enviar uma mensagem de texto. Obrigado",
             });
+  
+            const number = node.attrs.from.replace(/\D/g, "");
+  
+            const contact = await Contact.findOne({
+              where: { companyId, number },
+            });
+  
+            const ticket = await Ticket.findOne({
+              where: {
+                contactId: contact.id,
+                whatsappId: wbot.id,
+                //status: { [Op.or]: ["close"] },
+                companyId
+              },
+            });
+            // se não existir o ticket não faz nada.
+            if (!ticket) return;
+  
+            const date = new Date();
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+  
+            const body = `Chamada de voz/vídeo perdida às ${hours}:${minutes}`;
+            const messageData = {
+              id: content.attrs["call-id"],
+              ticketId: ticket.id,
+              contactId: contact.id,
+              body,
+              fromMe: false,
+              mediaType: "call_log",
+              read: true,
+              quotedMsgId: null,
+              ack: 1,
+            };
+  
+            await ticket.update({
+              lastMessage: body,
+            });
+            
+  
+            if(ticket.status === "closed") {
+              await ticket.update({
+                status: "pending",
+              });
+            }
+  
+            return CreateMessageService({ messageData, companyId: companyId });
           }
-
-          return CreateMessageService({ messageData, companyId: companyId });
         }
       }
     });
 
     wbot.ev.on("contacts.upsert", async (contacts: BContact[]) => {
-      console.log("upsert", contacts);
+      //console.log("upsert", contacts);
       await createOrUpdateBaileysService({
         whatsappId: whatsapp.id,
         contacts,

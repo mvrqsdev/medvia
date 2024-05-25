@@ -228,7 +228,8 @@ const useStyles = makeStyles((theme) => ({
       await api.put(`/tickets/${id}`, {
         status: "closed",
         userId: user?.id,
-        queueId: ticket?.queue?.id
+        queueId: ticket?.queue?.id,
+        whatsappId: ticket.whatsappId
       });
     } catch (err) {
       setLoading(false);
@@ -246,7 +247,8 @@ const useStyles = makeStyles((theme) => ({
       await api.put(`/tickets/${id}`, {
         status: "open",
         userId: user?.id,
-        queueId: ticket?.queue?.id
+        queueId: ticket?.queue?.id,
+        whatsappId: ticket.whatsappId
       });
     } catch (err) {
       setLoading(false);
@@ -264,6 +266,7 @@ const useStyles = makeStyles((theme) => ({
             await api.put(`/tickets/${id}`, {
                 status: "open",
                 userId: user?.id,
+                whatsappId: ticket.whatsappId
             });
 
             let settingIndex;

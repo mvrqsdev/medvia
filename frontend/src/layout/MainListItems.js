@@ -15,7 +15,7 @@ import PeopleAltOutlinedIcon from "@material-ui/icons/PeopleAltOutlined";
 import ContactPhoneOutlinedIcon from "@material-ui/icons/ContactPhoneOutlined";
 import AccountTreeOutlinedIcon from "@material-ui/icons/AccountTreeOutlined";
 import FlashOnIcon from "@material-ui/icons/FlashOn";
-import { Business, LocalHospital,Android,CancelPresentation } from "@material-ui/icons";
+import { People, PeopleAltOutlined,Business, LocalHospital,Android,CancelPresentation } from "@material-ui/icons";
 import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import CodeRoundedIcon from "@material-ui/icons/CodeRounded";
 import EventIcon from "@material-ui/icons/Event";
@@ -231,10 +231,6 @@ const MainListItems = (props) => {
     }
   };
 
-  const handleClickLogout = () => {
-    //handleCloseMenu();
-    handleLogout();
-  };
 
   return (
     <div onClick={drawerClose}>
@@ -282,8 +278,18 @@ const MainListItems = (props) => {
             />
             <ListItemLink
               to="/contacts"
-              primary={i18n.t("mainDrawer.listItems.contacts")}
-              icon={<ContactPhoneOutlinedIcon />}
+              primary="Contatos"
+              icon={<PeopleAltOutlined />}
+            />
+            <ListItemLink
+              to="/origens"
+              primary="Origens"
+              icon={<Business />}
+            />
+            <ListItemLink
+              to="/reviews"
+              primary="Revisões"
+              icon={<Business />}
             />
             <ListItemLink
               to="/schedules"
@@ -461,16 +467,6 @@ const MainListItems = (props) => {
           </>
         )}
       />
-      <Divider />
-      <li>
-        <ListItem 
-        button 
-        dense 
-        onClick={handleClickLogout}> 
-            <ListItemIcon><RotateRight/></ListItemIcon> 
-          <ListItemText primary={i18n.t("Sair")} />
-        </ListItem>
-      </li>
     </div>
   );
 };

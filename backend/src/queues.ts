@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import axios from 'axios';
 import Queue from "bull";
 import { MessageData, SendMessage } from "./helpers/SendMessage";
 import Whatsapp from "./models/Whatsapp";
@@ -18,11 +19,16 @@ import GetWhatsappWbot from "./helpers/GetWhatsappWbot";
 import sequelize from "./database";
 import { getMessageOptions } from "./services/WbotServices/SendWhatsAppMedia";
 import { getIO } from "./libs/socket";
+import { getWbot } from "./libs/wbot";
 import path from "path";
 import User from "./models/User";
 import Company from "./models/Company";
 import Plan from "./models/Plan";
 import Ticket from "./models/Ticket";
+import Origen from "./models/Origen";
+import Exam from "./models/Exam";
+import Setting from "./models/Setting";
+
 const nodemailer = require('nodemailer');
 const CronJob = require('cron').CronJob;
 
@@ -47,6 +53,9 @@ interface DispatchCampaignData {
   campaignShippingId: number;
   contactListItemId: number;
 }
+
+export const examsMonitor = new Queue("ExamMonitor",connection);
+export const sendExamsMessages = new Queue("SendExamsMessages",connection);
 
 export const userMonitor = new Queue("UserMonitor", connection);
 
@@ -121,6 +130,7 @@ async function handleVerifyQueue(job) {
           const moveQueueTime = moveQueue;
           const idQueue = moveQueueId;
           const timeQueue = moveQueueTime;
+          
 
           if (moveQueue > 0) {
 
@@ -149,6 +159,8 @@ async function handleVerifyQueue(job) {
                 ]
               });
 
+              
+
               if (count > 0) {
                 tickets.map(async ticket => {
                   await ticket.update({
@@ -167,18 +179,8 @@ async function handleVerifyQueue(job) {
                       ticketId: ticket.id
                     });
 
-                  // io.to("pending").emit(`company-${companyId}-ticket`, {
-                  //   action: "update",
-                  //   ticket,
-                  // });
-
-                  logger.info(`Atendimento Perdido: ${ticket.id} - Empresa: ${companyId}`);
                 });
-              } else {
-                logger.info(`Nenhum atendimento perdido encontrado - Empresa: ${companyId}`);
               }
-            } else {
-              logger.info(`Condição não respeitada - Empresa: ${companyId}`);
             }
           }
         }
@@ -190,6 +192,8 @@ async function handleVerifyQueue(job) {
     throw e;
   }
 };
+
+
 
 async function handleVerifySchedules(job) {
   try {
@@ -258,6 +262,249 @@ async function handleSendScheduledMessage(job) {
       status: "ERRO"
     });
     logger.error("SendScheduledMessage -> SendMessage: error", e.message);
+    throw e;
+  }
+}
+/*
+Parei aqui, tenho que criar uma dado que ficara
+*/
+
+
+async function handleVerifyExams(job) {
+  try {
+    let companyId;
+    const io = getIO();
+    logger.info("Verificando Exames a serem enviados");
+    const { count, rows: exams } = await Exam.findAndCountAll({
+      where: {
+        status: "Pendente",
+        sentAt: null,
+        nextSend: {
+          [Op.gte]: moment().format("YYYY-MM-DD HH:mm:ss"),
+          [Op.lte]: moment().add("30", "seconds").format("YYYY-MM-DD HH:mm:ss")
+        }
+      }
+    });
+    
+    if (count > 0) {
+      exams.map(async exam => {
+        companyId = exam.companyId;
+        // verifica se existe origem
+        if(exam.origensId){
+
+          const origen = await Origen.findByPk(exam.origensId);
+
+          // SE EXISTIR E FOR UM ACHADO CRÍTICO/PENDENCIA JA VAI AGENDAR A MENSAGEM
+          if(exam.type === "critical" || exam.type === "pendency"){
+
+            await exam.update({
+              status: "Agendado"
+            });
+
+            sendExamsMessages.add(
+              "SendExamsMessages",
+              { exam },
+              { delay: 40000 }
+            );
+
+            if(exam.type === "critical"){
+              io.emit(`alert-exam-pacs`, {
+                type: "newCritical",
+                exam: exam,
+                origen: origen
+              });
+            }
+
+          }else{
+            await exam.update({
+              status: "Recebido"
+            });
+
+            
+            io.emit(`alert-exam-pacs`, {
+              type: "newReview",
+              exam: exam,
+              origen: origen
+            });
+
+          }
+
+        }else{
+
+          await exam.update({
+            status: "Recebido",
+            situation: "Pendente"
+          });
+
+          const io = getIO();
+          io.emit(`alert-exam-pacs`, {
+            type: "noOrigen",
+            exam: exam
+          });
+        }
+      });
+    }
+  } catch (e: any) {
+    Sentry.captureException(e);
+    console.log(e);
+    logger.error("HandleVerifyExam -> Verify: error", e.message);
+    throw e;
+  }
+}
+
+
+async function handleSendExamMessage(job) {
+  const {
+    data: { exam }
+  } = job;
+
+  let examRecord: Exam | null = null;
+  
+
+  try {
+    examRecord = await Exam.findByPk(exam.id);
+  } catch (e) {
+    Sentry.captureException(e);
+    logger.info(`Erro ao tentar consultar agendamento: ${exam.id}`);
+  }
+  let ms = "";
+
+  const Hr = new Date();
+  const hh: number = Hr.getHours();
+
+  if (hh >= 6) {
+    ms = "Bom dia";
+  }
+  if (hh > 12) {
+    ms = "Boa tarde";
+  }
+  if (hh > 17) {
+    ms = "Boa noite";
+  }
+  if (hh > 23 || hh < 6) {
+    ms = "Boa madrugada";
+  }
+
+  try {
+    const wbot = await getWbot(exam.whatsappId);
+    const origen = await Origen.findOne({where: {id: exam.origensId}});
+    const examJson = JSON.parse(exam.dataJson);
+    let message = "";
+    const date = new Date();
+
+    if(origen){
+
+      if(origen.type === "Externa"){
+
+        if(exam.type === "pendency"){
+          const {count, rows: contacts} = await Contact.findAndCountAll({where:{origensId: origen.id, receivePendency: true}});
+  
+          if(count > 0){
+            logger.info(`Enviando exame do paciente ${exam.name} via WhatsApp`)
+            
+            contacts.map(async contact => {
+              message = `${ms} *${contact.name}*, foi aberta uma pendência no seguinte exame:\n\n*ID:* ${exam.patientId}\n*Paciente:* ${exam.name}\n*Descrição:* ${exam.description}\n*Modalidade:* ${exam.modality}\n*Data do Exame:* ${exam.dateExam}\n*Radiologista:* ${exam.radiologista}\n*Origem:* ${origen.name}\n\n*Descrição da pendência:*\n${examJson['Comentários da pendência']}\n\n*Favor responder na pendência em nosso PACS.*`;
+  
+              await wbot.sendMessage(
+                `${contact.number}@${contact.isGroup ? "g.us" : "s.whatsapp.net"}`,
+                {text: message}
+              );
+  
+              
+            });
+            await examRecord.update({
+              status: "Finalizado"
+            })
+          }
+  
+  
+        }
+    
+        if(exam.type === "critical"){
+  
+          const {count, rows: contacts} = await Contact.findAndCountAll({where:{origensId: origen.id, receiveCritical: true}});
+  
+          if(count > 0){
+            logger.info(`Enviando exame do paciente ${exam.name} via WhatsApp`)
+
+            if(exam.ocorrencia <= origen.frequency){
+              const [hh,mm,ss] = origen.interval.split(":").map(part => parseInt(part, 10));
+              date.setHours(date.getHours() + hh);
+              date.setMinutes(date.getMinutes() + mm);
+              date.setSeconds(date.getSeconds() + ss);
+  
+              contacts.map(async contact => {
+                message = `${ms} *${contact.name}*, um achado crítico foi registrado no seguinte exame:\n\n*ID:* ${exam.patientId}\n*Paciente:* ${exam.name}\n*Descrição:* ${exam.description}\n*Data do Exame:* ${exam.dateExam}\n*Radiologista:* ${exam.radiologista}\n*Accession N°:* ${exam.accessionNumber}\n*Origem:* ${origen.name}\n*Pedimos que seja avisado ao médico responsável o mais breve possível.*`;
+    
+                await wbot.sendMessage(
+                  `${contact.number}@${contact.isGroup ? "g.us" : "s.whatsapp.net"}`,
+                  {text: message}
+                );
+              });
+
+              let newOcorrencia = exam.ocorrencia + 1;
+
+              await examRecord.update({
+                status: newOcorrencia <= origen.frequency ? "Pendente" : "Finalizado",
+                ocorrencia: newOcorrencia,
+                nextSend: date
+              })
+            }
+        }
+        }
+      }else{
+
+        
+        const urlMessageTeams = await Setting.findOne({where: {key: "urlMessageTeams", companyId: exam.companyId}});
+        const tokenTeams = await Setting.findOne({where: {key: "tokenTeams", companyId: exam.companyId}});
+        logger.info(`Enviando exame do paciente ${exam.name} via Teams`)
+        
+        if(urlMessageTeams && tokenTeams){
+          axios.post(urlMessageTeams.value,{token: tokenTeams.value,type: exam.type, origen: origen, exam: exam});
+        }
+
+        if(exam.type === "critical"){
+
+          if(exam.ocorrencia <= origen.frequency){
+            const [hh,mm,ss] = origen.interval.split(":").map(part => parseInt(part, 10));
+            date.setHours(date.getHours() + hh);
+            date.setMinutes(date.getMinutes() + mm);
+            date.setSeconds(date.getSeconds() + ss);
+
+            if(urlMessageTeams && tokenTeams){
+              axios.post(urlMessageTeams.value,{token: tokenTeams.value,type: exam.type, origen: origen, exam: exam});
+            }
+            
+            let newOcorrencia = exam.ocorrencia + 1;
+
+            await examRecord.update({
+              status: newOcorrencia <= origen.frequency ? "Pendente" : "Finalizado",
+              ocorrencia: newOcorrencia,
+              nextSend: date
+            })
+          }
+        }else{
+          if(urlMessageTeams && tokenTeams){
+            axios.post(urlMessageTeams.value,{token: tokenTeams.value,type: exam.type, origen: origen, exam: exam});
+          }
+
+          await examRecord.update({
+            status: "Finalizado"
+          });
+        }
+
+      }
+
+    }
+    sendExamsMessages.clean(15000, "completed");
+
+  } catch (e: any) {
+    Sentry.captureException(e);
+    console.log(e);
+    await examRecord?.update({
+      status: "ERRO"
+    });
+    logger.error("SendExamsMessages -> SendMessage: error", e.message);
     throw e;
   }
 }
@@ -686,7 +933,7 @@ async function handleDispatchCampaign(job) {
   } catch (err: any) {
     Sentry.captureException(err);
     logger.error(err.message);
-    console.log(err.stack);
+    //console.log(err.stack);
   }
 }
 
@@ -764,9 +1011,9 @@ async function handleInvoiceCreate() {
           
                     transporter.sendMail(mailOptions, (err, info) => {
                       if (err)
-                        console.log(err)
+                        //console.log(err)
                       else
-                        console.log(info);
+                        //console.log(info);
                     }); */
 
         }
@@ -807,6 +1054,19 @@ export async function startQueueProcess() {
   queueMonitor.process("VerifyQueueStatus", handleVerifyQueue);
 
 
+  examsMonitor.process("VerifyExams",handleVerifyExams);
+
+  sendExamsMessages.process("SendExamsMessages",handleSendExamMessage);
+
+
+  examsMonitor.add(
+    "VerifyExams",
+    {},
+    {
+      repeat: { cron: "*/5 * * * * *" },
+      removeOnComplete: true
+    }
+);
 
   scheduleMonitor.add(
     "Verify",
@@ -822,6 +1082,15 @@ export async function startQueueProcess() {
     {},
     {
       repeat: { cron: "*/20 * * * * *" },
+      removeOnComplete: true
+    }
+  );
+
+  queueMonitor.add(
+    "VerifyQueueStatus",
+    {},
+    {
+      repeat: { cron: "*/5 * * * * *" },
       removeOnComplete: true
     }
   );

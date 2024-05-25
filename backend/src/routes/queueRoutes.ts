@@ -6,6 +6,7 @@ import * as QueueController from "../controllers/QueueController";
 const queueRoutes = Router();
 
 queueRoutes.get("/queue", isAuth, QueueController.index);
+queueRoutes.get("/queuewhatsapp/:queueId", isAuth, QueueController.queueByWhatsApp);
 
 queueRoutes.post("/queue", isAuth, QueueController.store);
 

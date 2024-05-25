@@ -15,6 +15,9 @@ import Avatar from "@material-ui/core/Avatar";
 import WhatsAppIcon from "@material-ui/icons/WhatsApp";
 import SearchIcon from "@material-ui/icons/Search";
 import TextField from "@material-ui/core/TextField";
+import Chip from "@material-ui/core/Chip";
+import { Field } from "formik";
+import { FormControlLabel, Switch } from "@material-ui/core";
 import InputAdornment from "@material-ui/core/InputAdornment";
 
 import IconButton from "@material-ui/core/IconButton";
@@ -36,51 +39,27 @@ import { AuthContext } from "../../context/Auth/AuthContext";
 import { Can } from "../../components/Can";
 import NewTicketModal from "../../components/NewTicketModal";
 import { socketConnection } from "../../services/socket";
+import Tabs from '@material-ui/core/Tabs';
+import Tab from '@material-ui/core/Tab';
 
 import {CSVLink} from "react-csv";
 
-const reducer = (state, action) => {
-  if (action.type === "LOAD_CONTACTS") {
-    const contacts = action.payload;
-    const newContacts = [];
+const categoria = {
+  "customer"  : "Cliente",
+  "medic"     : "Médico",
+  "other"     : "Outros"
+};
 
-    contacts.forEach((contact) => {
-      const contactIndex = state.findIndex((c) => c.id === contact.id);
-      if (contactIndex !== -1) {
-        state[contactIndex] = contact;
-      } else {
-        newContacts.push(contact);
-      }
-    });
-
-    return [...state, ...newContacts];
-  }
-
-  if (action.type === "UPDATE_CONTACTS") {
-    const contact = action.payload;
-    const contactIndex = state.findIndex((c) => c.id === contact.id);
-
-    if (contactIndex !== -1) {
-      state[contactIndex] = contact;
-      return [...state];
-    } else {
-      return [contact, ...state];
-    }
-  }
-
-  if (action.type === "DELETE_CONTACT") {
-    const contactId = action.payload;
-
-    const contactIndex = state.findIndex((c) => c.id === contactId);
-    if (contactIndex !== -1) {
-      state.splice(contactIndex, 1);
-    }
-    return [...state];
-  }
-
-  if (action.type === "RESET") {
-    return [];
-  }
+const specialty = {
+  "corpo"         : "Corpo",
+  "neuro"         : "Neuro",
+  "musc"          : "Músculo",
+  "raiox"         : "Raio X",
+  "densitometria" : "Densitometria",
+  "mamografia"    : "Mamografia",
+  "geral"         : "Geral",
+  "cardio"        : "Cardio",
+  "mama"          : "Mama",
 };
 
 const useStyles = makeStyles((theme) => ({
@@ -88,9 +67,30 @@ const useStyles = makeStyles((theme) => ({
     flex: 1,
     padding: theme.spacing(2),
     margin: theme.spacing(1),
+    marginTop: "0px",
     overflowY: "scroll",
     ...theme.scrollbarStyles,
   },
+
+  isGroup: {
+    backgroundColor: "f8f9fa",
+    borderTopRightRadius: "10px",
+    borderTopLeftRadius: "10px"
+  },
+
+  category: {
+    backgroundColor: "f8f9fa",
+  },
+  boxTab: {
+    boxShadow: "0px 2px 7px 0px rgba(100, 100, 111, 0.4)",
+    borderTopRightRadius: "10px",
+    borderTopLeftRadius: "10px",
+    margin: "10px 10px 0px 10px",
+    display: "flex",
+    justifyContent: "space-between",
+    paddingLeft: "15px",
+    paddingRight: "15px"
+  }
 }));
 
 const Contacts = () => {
@@ -102,7 +102,7 @@ const Contacts = () => {
   const [loading, setLoading] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [searchParam, setSearchParam] = useState("");
-  const [contacts, dispatch] = useReducer(reducer, []);
+  const [contacts, setContacts] = useState([])
   const [selectedContactId, setSelectedContactId] = useState(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [newTicketModalOpen, setNewTicketModalOpen] = useState(false);
@@ -110,44 +110,57 @@ const Contacts = () => {
   const [deletingContact, setDeletingContact] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [category, setCategory] = useState("medic");
+  const [isGroup, setIsGroup] = useState(false);
+  const [updated,setUpdated] = useState(true);
+
 
   useEffect(() => {
-    dispatch({ type: "RESET" });
-    setPageNumber(1);
-  }, [searchParam]);
-
-  useEffect(() => {
-    setLoading(true);
     const delayDebounceFn = setTimeout(() => {
+
+
       const fetchContacts = async () => {
         try {
           const { data } = await api.get("/contacts/", {
-            params: { searchParam, pageNumber },
+            params: { searchParam,category, isGroup },
           });
-          dispatch({ type: "LOAD_CONTACTS", payload: data.contacts });
-          setHasMore(data.hasMore);
+
           setLoading(false);
+          setContacts(data.contacts);
+
         } catch (err) {
           toastError(err);
         }
       };
       fetchContacts();
-    }, 500);
+    }, 800);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchParam, pageNumber]);
+  }, [isGroup,category,searchParam,updated]);
 
   useEffect(() => {
     const companyId = localStorage.getItem("companyId");
     const socket = socketConnection({ companyId });
 
     socket.on(`company-${companyId}-contact`, (data) => {
-      if (data.action === "update" || data.action === "create") {
-        dispatch({ type: "UPDATE_CONTACTS", payload: data.contact });
-      }
 
-      if (data.action === "delete") {
-        dispatch({ type: "DELETE_CONTACT", payload: +data.contactId });
-      }
+      setContacts((prevContacts) => {
+        // Atualiza os contatos com base na ação recebida do socket
+        if (data.action === "update" || data.action === "create") {
+          const updatedContacts = prevContacts.map((contact) =>
+            contact.id === data.contact.id ? data.contact : contact
+          );
+          // Adiciona um novo contato se ele não existir na lista
+          if (!updatedContacts.find((contact) => contact.id === data.contact.id)) {
+            updatedContacts.push(data.contact);
+          }
+          return updatedContacts;
+        } else if (data.action === "delete") {
+          // Remove o contato da lista
+          return prevContacts.filter((contact) => contact.id !== +data.contact.id);
+        }
+        return prevContacts;
+      });
+
     });
 
     return () => {
@@ -156,6 +169,8 @@ const Contacts = () => {
   }, []);
 
   const handleSearch = (event) => {
+    setLoading(true);
+    setContacts([]);
     setSearchParam(event.target.value.toLowerCase());
   };
 
@@ -218,17 +233,22 @@ const Contacts = () => {
     }
   };
 
-  const loadMore = () => {
-    setPageNumber((prevState) => prevState + 1);
-  };
 
-  const handleScroll = (e) => {
-    if (!hasMore || loading) return;
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - (scrollTop + 100) < clientHeight) {
-      loadMore();
-    }
-  };
+  const handleChangeCategory = (valor) => {
+    setLoading(true);
+    setContacts([]);
+    setCategory(valor);
+  }
+
+  const handleChangeIsGroup = () => {
+    setLoading(true);
+    setContacts([]);
+    setIsGroup(!isGroup);
+  }
+  const handleOnSave = () => {
+    setUpdated(!updated);
+  }
+
 
   return (
     <MainContainer className={classes.mainContainer}>
@@ -242,6 +262,7 @@ const Contacts = () => {
       <ContactModal
         open={contactModalOpen}
         onClose={handleCloseContactModal}
+        onSave={handleOnSave}
         aria-labelledby="form-dialog-title"
         contactId={selectedContactId}
       ></ContactModal>
@@ -266,7 +287,7 @@ const Contacts = () => {
           : `${i18n.t("contacts.confirmationModal.importMessage")}`}
       </ConfirmationModal>
       <MainHeader>
-        <Title>{i18n.t("contacts.title")}</Title>
+        <Title>Clientes</Title>
         <MainHeaderButtonsWrapper>
           <TextField
             placeholder={i18n.t("contacts.searchPlaceholder")}
@@ -296,7 +317,7 @@ const Contacts = () => {
             {i18n.t("contacts.buttons.add")}
           </Button>
 
-         <CSVLink style={{ textDecoration:'none'}} separator=";" filename={'whaticket.csv'} data={contacts.map((contact) => ({ name: contact.name, number: contact.number, email: contact.email }))}>
+         <CSVLink style={{ textDecoration:'none'}} separator=";" filename={'contatos.csv'} data={contacts.map((contact) => ({ name: contact.name, number: contact.number, email: contact.email }))}>
           <Button	variant="contained" color="primary"> 
           EXPORTAR CONTATOS 
           </Button>
@@ -304,74 +325,236 @@ const Contacts = () => {
 
         </MainHeaderButtonsWrapper>
       </MainHeader>
+      <div className={classes.boxTab}>
+          <Tabs onChange={(e, newValue) => handleChangeCategory(newValue)} value={category} className={classes.category} variant="fullWidth">
+            <Tab label="Médicos" value="medic" />
+            <Tab label="Clientes" value="customer" />
+            <Tab label="Outros"  value="other" />           
+          </Tabs>
+          <FormControlLabel
+              control={
+                <Switch
+                onClick={handleChangeIsGroup}
+                checked={isGroup}
+                name="checkedA"
+                inputProps={{ 'aria-label': 'secondary checkbox' }}
+              />
+              }
+              label="Grupos"
+            />
+          
+        </div>
       <Paper
         className={classes.mainPaper}
         variant="outlined"
-        onScroll={handleScroll}
       >
+        
+        
         <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox" />
-              <TableCell>{i18n.t("contacts.table.name")}</TableCell>
-              <TableCell align="center">
-                {i18n.t("contacts.table.whatsapp")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("contacts.table.email")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("contacts.table.actions")}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+          {category === "medic" &&
             <>
-              {contacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell style={{ paddingRight: 0 }}>
-                    {<Avatar src={contact.profilePicUrl} />}
-                  </TableCell>
-                  <TableCell>{contact.name}</TableCell>
-                  <TableCell align="center">{contact.number}</TableCell>
-                  <TableCell align="center">{contact.email}</TableCell>
+              <TableHead>
+                <TableRow>
+                  <TableCell></TableCell>
+                  <TableCell>Nome</TableCell>
                   <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setContactTicket(contact);
-                        setNewTicketModalOpen(true);
-                      }}
-                    >
-                      <WhatsAppIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => hadleEditContact(contact.id)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <Can
-                      role={user.profile}
-                      perform="contacts-page:deleteContact"
-                      yes={() => (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            setConfirmOpen(true);
-                            setDeletingContact(contact);
-                          }}
-                        >
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      )}
-                    />
+                    Especialidade
+                  </TableCell>
+                  <TableCell align="center">
+                    WhatsApp
+                  </TableCell>
+                  <TableCell align="center">
+                    {i18n.t("contacts.table.actions")}
                   </TableCell>
                 </TableRow>
-              ))}
-              {loading && <TableRowSkeleton avatar columns={3} />}
+              </TableHead>
+              <TableBody>
+                <>
+                  {contacts.map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell style={{ paddingRight: 0 }}>
+                        {<Avatar src={contact.profilePicUrl} />}
+                      </TableCell>
+                      <TableCell>{contact.name}</TableCell>
+                      <TableCell align="center">{contact.specialty}</TableCell>
+                      <TableCell align="center">{contact.number}</TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setContactTicket(contact);
+                            setNewTicketModalOpen(true);
+                          }}
+                        >
+                          <WhatsAppIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => hadleEditContact(contact.id)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <Can
+                          role={user.profile}
+                          perform="contacts-page:deleteContact"
+                          yes={() => (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                setConfirmOpen(true);
+                                setDeletingContact(contact);
+                              }}
+                            >
+                              <DeleteOutlineIcon />
+                            </IconButton>
+                          )}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {loading && <TableRowSkeleton avatar columns={3} />}
+                </>
+              </TableBody>
             </>
-          </TableBody>
+          }
+          
+          {category === "customer" &&
+            <>
+              <TableHead>
+                <TableRow>
+                  <TableCell></TableCell>
+                  <TableCell>Nome</TableCell>
+                  <TableCell align="center">
+                    Origem
+                  </TableCell>
+                  <TableCell align="center">
+                    Prioridade
+                  </TableCell>
+                  <TableCell align="center">
+                    Número
+                  </TableCell>
+                  <TableCell align="center">
+                    {i18n.t("contacts.table.actions")}
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                <>
+                  {contacts.map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell style={{ paddingRight: 0 }}>
+                        {<Avatar src={contact.profilePicUrl} />}
+                      </TableCell>
+                      <TableCell>{contact.name}</TableCell>
+                      <TableCell align="center">{contact.origen?.name}</TableCell>
+                      <TableCell align="center">{contact.origen?.priority}</TableCell>
+                      <TableCell align="center">{contact.number}</TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setContactTicket(contact);
+                            setNewTicketModalOpen(true);
+                          }}
+                        >
+                          <WhatsAppIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => hadleEditContact(contact.id)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <Can
+                          role={user.profile}
+                          perform="contacts-page:deleteContact"
+                          yes={() => (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                setConfirmOpen(true);
+                                setDeletingContact(contact);
+                              }}
+                            >
+                              <DeleteOutlineIcon />
+                            </IconButton>
+                          )}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {loading && <TableRowSkeleton avatar columns={3} />}
+                </>
+              </TableBody>
+            </>
+          }
+
+          {category === "other" &&
+            <>
+              <TableHead>
+                <TableRow>
+                  <TableCell></TableCell>
+                  <TableCell>Nome</TableCell>
+                  <TableCell align="center">
+                    Número
+                  </TableCell>
+                  <TableCell align="center">
+                    Email
+                  </TableCell>
+                  <TableCell align="center">
+                    {i18n.t("contacts.table.actions")}
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                <>
+                  {contacts.map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell style={{ paddingRight: 0 }}>
+                        {<Avatar src={contact.profilePicUrl} />}
+                      </TableCell>
+                      <TableCell>{contact.name}</TableCell>
+                      <TableCell align="center">{contact.number}</TableCell>
+                      <TableCell align="center">{contact.email}</TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setContactTicket(contact);
+                            setNewTicketModalOpen(true);
+                          }}
+                        >
+                          <WhatsAppIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => hadleEditContact(contact.id)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <Can
+                          role={user.profile}
+                          perform="contacts-page:deleteContact"
+                          yes={() => (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                setConfirmOpen(true);
+                                setDeletingContact(contact);
+                              }}
+                            >
+                              <DeleteOutlineIcon />
+                            </IconButton>
+                          )}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {loading && <TableRowSkeleton avatar columns={3} />}
+                </>
+              </TableBody>
+            </>
+          }
         </Table>
       </Paper>
     </MainContainer>

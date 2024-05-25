@@ -2,6 +2,11 @@ import React, { useState, useEffect, useReducer, useRef } from "react";
 
 import { isSameDay, parseISO, format } from "date-fns";
 import clsx from "clsx";
+import VcardPreview from "../VcardPreview";
+
+// import axios from "axios";
+import vcard from "vcard-parser";
+
 
 import { green } from "@material-ui/core/colors";
 import {
@@ -32,6 +37,7 @@ import whatsBackgroundDark from "../../assets/wa-background-dark.png"; //DARK MO
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import { socketConnection } from "../../services/socket";
+import { el } from "date-fns/locale";
 
 const useStyles = makeStyles((theme) => ({
   messagesListWrapper: {
@@ -419,6 +425,8 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
   };
 
   const checkMessageMedia = (message) => {
+    const messageJson = JSON.parse(message.dataJson);
+
     if (message.mediaType === "locationMessage" && message.body.split('|').length >= 2) {
       let locationParts = message.body.split('|')
       let imageLocation = locationParts[0]
@@ -431,41 +439,38 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
 
       return <LocationPreview image={imageLocation} link={linkLocation} description={descriptionLocation} />
     }
-    /* else if (message.mediaType === "vcard") {
-      let array = message.body.split("\n");
-      let obj = [];
-      let contact = "";
-      for (let index = 0; index < array.length; index++) {
-        const v = array[index];
-        let values = v.split(":");
-        for (let ind = 0; ind < values.length; ind++) {
-          if (values[ind].indexOf("+") !== -1) {
-            obj.push({ number: values[ind] });
-          }
-          if (values[ind].indexOf("FN") !== -1) {
-            contact = values[ind + 1];
-          }
-        }
-      }
-      return <VcardPreview contact={contact} numbers={obj[0].number} />
-    } */
-    /*else if (message.mediaType === "multi_vcard") {
-      console.log("multi_vcard")
-      console.log(message)
-    	
-      if(message.body !== null && message.body !== "") {
-        let newBody = JSON.parse(message.body)
-        return (
-          <>
-            {
-            newBody.map(v => (
-              <VcardPreview contact={v.name} numbers={v.number} />
-            ))
-            }
-          </>
-        )
-      } else return (<></>)
-    }*/
+    else if (messageJson?.message?.contactMessage?.vcard) {
+      // UM CONTATO SOMENTE
+      const vcardContact = vcard.parse(messageJson?.message?.contactMessage?.vcard);
+      const name = messageJson?.message?.contactMessage?.displayName;
+      const waid = vcardContact.tel?.[0]?.meta?.waid?.[0];
+      
+      let contato = {
+        name: name,
+        number: waid || undefined,
+        isValid: waid ? true : false
+      };
+      return (
+        <VcardPreview contacts={[contato]} ticket={ticket} />
+      )
+     
+    }
+    else if (messageJson?.message?.contactsArrayMessage?.contacts) {
+
+      // MULTIPLOS CONTATOS
+      const contacts = messageJson?.message?.contactsArrayMessage?.contacts;
+      let vcards = contacts.map((element) => {
+        let name = element.displayName;
+        let parsedVCard = vcard.parse(element.vcard);
+        let waid = parsedVCard.tel?.[0]?.meta?.waid?.[0];
+        return { name: name, number: waid || undefined ,isValid: waid ? true : false};
+      });
+      return (
+        <VcardPreview contacts={vcards} />
+      )
+
+
+    }
     else if (message.mediaType === "image") {
       return <ModalImageCors imageUrl={message.mediaUrl} />;
     } else if (message.mediaType === "audio") {
@@ -493,7 +498,7 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
               target="_blank"
               href={message.mediaUrl}
             >
-              Download
+              Baixar Arquivo
             </Button>
           </div>
           <Divider />
@@ -504,13 +509,13 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
 
   const renderMessageAck = (message) => {
     if (message.ack === 1) {
-      return <AccessTime fontSize="small" className={classes.ackIcons} />;
+      return <DoneAll fontSize="small" className={classes.ackDoneAllIcon} />;
     }
     if (message.ack === 2) {
-      return <Done fontSize="small" className={classes.ackIcons} />;
+      return <DoneAll fontSize="small" className={classes.ackDoneAllIcon} />;
     }
     if (message.ack === 3) {
-      return <DoneAll fontSize="small" className={classes.ackIcons} />;
+      return <DoneAll fontSize="small" className={classes.ackDoneAllIcon} />;
     }
     if (message.ack === 4 || message.ack === 5) {
       return <DoneAll fontSize="small" className={classes.ackDoneAllIcon} />;
@@ -650,7 +655,8 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
           {message.quotedMsg.mediaType === "image"
             && (
               <ModalImageCors imageUrl={message.quotedMsg.mediaUrl} />)
-            || message.quotedMsg?.body}
+            || message.quotedMsg?.body
+            }
 
         </div>
       </div>
@@ -660,6 +666,9 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
   const renderMessages = () => {
     if (messagesList.length > 0) {
       const viewMessagesList = messagesList.map((message, index) => {
+        let name = message.mediaUrl?.replace(/.*\/public\//, '');
+
+        let messageComTexto = name === message.body ? true : false;
 
         if (message.mediaType === "call_log") {
           return (
@@ -729,13 +738,14 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
                     </span>
                   </div>
                 )}
-
-                {(message.mediaUrl || message.mediaType === "locationMessage" || message.mediaType === "vcard"
+                {(message.mediaUrl  || message.mediaType === "locationMessage"  || JSON.parse(message.dataJson).message?.contactsArrayMessage?.contacts || JSON.parse(message.dataJson).message?.contactMessage?.vcard
                   //|| message.mediaType === "multi_vcard" 
                 ) && checkMessageMedia(message)}
                 <div className={classes.textContentItem}>
                   {message.quotedMsg && renderQuotedMessage(message)}
-                  <MarkdownWrapper>{message.mediaType === "locationMessage" ? null : message.body}</MarkdownWrapper>
+                  <MarkdownWrapper>
+                    {message.mediaType === "locationMessage" || JSON.parse(message.dataJson).message?.contactsArrayMessage?.contacts || JSON.parse(message.dataJson).message?.contactMessage?.vcard || messageComTexto ? null : message.body}
+                    </MarkdownWrapper>
                   <span className={classes.timestamp}>
                     {format(parseISO(message.createdAt), "HH:mm")}
                   </span>
@@ -760,7 +770,7 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
                 >
                   <ExpandMore />
                 </IconButton>
-                {(message.mediaUrl || message.mediaType === "locationMessage" || message.mediaType === "vcard"
+                {(message.mediaUrl || message.mediaType === "locationMessage" || JSON.parse(message.dataJson).message?.contactsArrayMessage?.contacts || JSON.parse(message.dataJson).message?.contactMessage?.vcard
                   //|| message.mediaType === "multi_vcard" 
                 ) && checkMessageMedia(message)}
                 <div
@@ -776,7 +786,9 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
                     />
                   )}
                   {message.quotedMsg && renderQuotedMessage(message)}
-                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  <MarkdownWrapper>
+                  {message.mediaType === "locationMessage" || JSON.parse(message.dataJson).message?.contactsArrayMessage?.contacts || JSON.parse(message.dataJson).message?.contactMessage?.vcard || message.mediaType === "image" || message.mediaType === "video" || message.mediaType === "audio"? null : message.body}
+                  </MarkdownWrapper>
                   <span className={classes.timestamp}>
                     {format(parseISO(message.createdAt), "HH:mm")}
                     {renderMessageAck(message)}
@@ -796,6 +808,7 @@ const MessagesList = ({ ticket, ticketId, isGroup }) => {
   return (
     <div className={classes.messagesListWrapper}>
       <MessageOptionsMenu
+        ticket={ticket}
         message={selectedMessage}
         anchorEl={anchorEl}
         menuOpen={messageOptionsMenuOpen}

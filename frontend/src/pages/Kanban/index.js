@@ -42,7 +42,7 @@ const Kanban = () => {
       // Fetch tickets after fetching tags
       await fetchTickets(jsonString);
     } catch (error) {
-      console.log(error);
+      //console.log(error);
     }
   };
 
@@ -66,12 +66,12 @@ const Kanban = () => {
       const { data } = await api.get("/ticket/kanban", {
         params: {
           queueIds: JSON.stringify(jsonString),
-          teste: true
+          showAll: true
         }
       });
       setTickets(data.tickets);
     } catch (err) {
-      console.log(err);
+      //console.log(err);
       setTickets([]);
     }
   };
@@ -132,7 +132,7 @@ const Kanban = () => {
                 <button 
                   className={classes.button} 
                   onClick={() => {
-                    console.log(ticket.uuid)
+                    //console.log(ticket.uuid)
                     handleCardClick(ticket.uuid)
                   }}>
                     Ver Atendimento
@@ -152,7 +152,7 @@ const Kanban = () => {
   };
 
   const handleCardClick = (uuid) => {  
-    //console.log("Clicked on card with UUID:", uuid);
+    ////console.log("Clicked on card with UUID:", uuid);
     history.push('/tickets/' + uuid);
   };
 
@@ -169,7 +169,7 @@ const Kanban = () => {
         toast.success('Atendimento Adicionado com Sucesso!');
 
     } catch (err) {
-      console.log(err);
+      //console.log(err);
     }
   };
 

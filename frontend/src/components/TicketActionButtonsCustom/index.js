@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useHistory } from "react-router-dom";
 
 import { makeStyles, createTheme, ThemeProvider } from "@material-ui/core/styles";
@@ -8,12 +8,14 @@ import { MoreVert, Replay } from "@material-ui/icons";
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import TicketOptionsMenu from "../TicketOptionsMenu";
+import GroupTicketModal from "../GroupTicketModal";
 import ButtonWithSpinner from "../ButtonWithSpinner";
 import toastError from "../../errors/toastError";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { TicketsContext } from "../../context/Tickets/TicketsContext";
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
 import UndoRoundedIcon from '@material-ui/icons/UndoRounded';
+import GroupIcon from '@material-ui/icons/Group';
 import Tooltip from '@material-ui/core/Tooltip';
 import { green } from '@material-ui/core/colors';
 
@@ -30,10 +32,13 @@ const useStyles = makeStyles(theme => ({
 	},
 }));
 
+
+
 const TicketActionButtonsCustom = ({ ticket }) => {
 	const classes = useStyles();
 	const history = useHistory();
 	const [anchorEl, setAnchorEl] = useState(null);
+	const [groupMembersModal, setGroupMembersModal] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const ticketOptionsMenuOpen = Boolean(anchorEl);
 	const { user } = useContext(AuthContext);
@@ -45,6 +50,7 @@ const TicketActionButtonsCustom = ({ ticket }) => {
 		}
 	});
 
+
 	const handleOpenTicketOptionsMenu = e => {
 		setAnchorEl(e.currentTarget);
 	};
@@ -53,12 +59,21 @@ const TicketActionButtonsCustom = ({ ticket }) => {
 		setAnchorEl(null);
 	};
 
+	const handleOpenGroupTicketModal = () => {
+		setGroupMembersModal(true);
+	}
+
+	const handleCloseGroupTicketModal = e => {
+		setGroupMembersModal(false);
+	};
+
 	const handleUpdateTicketStatus = async (e, status, userId) => {
 		setLoading(true);
 		try {
 			await api.put(`/tickets/${ticket.id}`, {
 				status: status,
 				userId: userId || null,
+				whatsappId: ticket.whatsappId
 			});
 
 			setLoading(false);
@@ -75,7 +90,9 @@ const TicketActionButtonsCustom = ({ ticket }) => {
 	};
 
 	return (
+
 		<div className={classes.actionButtons}>
+
 			{ticket.status === "closed" && (
 				<ButtonWithSpinner
 					loading={loading}
@@ -86,21 +103,23 @@ const TicketActionButtonsCustom = ({ ticket }) => {
 					{i18n.t("messagesList.header.buttons.reopen")}
 				</ButtonWithSpinner>
 			)}
-			{ticket.status === "open" && (
-				<>
-					<Tooltip title={i18n.t("messagesList.header.buttons.return")}>
-						<IconButton onClick={e => handleUpdateTicketStatus(e, "pending", null)}>
-							<UndoRoundedIcon />
+			{groupMembersModal && 
+					<GroupTicketModal open={groupMembersModal} onClose={handleCloseGroupTicketModal} ticket={ticket} ticketName={ticket.contact.name}/>
+			}
+			{
+				ticket.contact.isGroup && <>
+					<Tooltip title="Membros">
+						<IconButton onClick={handleOpenGroupTicketModal}>
+							<GroupIcon />
 						</IconButton>
 					</Tooltip>
-					<ThemeProvider theme={customTheme}>
-						<Tooltip title={i18n.t("messagesList.header.buttons.resolve")}>
-							<IconButton onClick={e => handleUpdateTicketStatus(e, "closed", user?.id)} color="primary">
-								<CheckCircleIcon />
-							</IconButton>
-						</Tooltip>
-					</ThemeProvider>
-					{/* <ButtonWithSpinner
+				</>
+			}
+
+			{ticket.status === "open" && (
+				<>
+					
+					<ButtonWithSpinner
 						loading={loading}
 						startIcon={<Replay />}
 						size="small"
@@ -112,11 +131,11 @@ const TicketActionButtonsCustom = ({ ticket }) => {
 						loading={loading}
 						size="small"
 						variant="contained"
-						color="primary"
+						color="secondary"
 						onClick={e => handleUpdateTicketStatus(e, "closed", user?.id)}
 					>
-						{i18n.t("messagesList.header.buttons.resolve")}
-					</ButtonWithSpinner> */}
+						{i18n.t("ticketsList.buttons.closed")}
+					</ButtonWithSpinner>
 					<IconButton onClick={handleOpenTicketOptionsMenu}>
 						<MoreVert />
 					</IconButton>
@@ -126,6 +145,7 @@ const TicketActionButtonsCustom = ({ ticket }) => {
 						menuOpen={ticketOptionsMenuOpen}
 						handleClose={handleCloseTicketOptionsMenu}
 					/>
+
 				</>
 			)}
 			{ticket.status === "pending" && (

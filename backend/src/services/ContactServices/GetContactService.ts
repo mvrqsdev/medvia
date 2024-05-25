@@ -13,6 +13,11 @@ interface Request {
   number: string;
   companyId: number;
   email?: string;
+  category?: string;
+  receiveCritical?: boolean;
+  receivePendency?: boolean;
+  receiveReview?: boolean;
+  specialty?: string;
   profilePicUrl?: string;
   extraInfo?: ExtraInfo[];
 }

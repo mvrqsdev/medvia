@@ -34,7 +34,7 @@ const filterOptions = createFilterOptions({
   trim: true,
 });
 
-const TransferTicketModalCustom = ({ modalOpen, onClose, ticketid }) => {
+const TransferTicketModalCustom = ({ modalOpen, onClose, ticket}) => {
   const history = useHistory();
   const [options, setOptions] = useState([]);
   const [queues, setQueues] = useState([]);
@@ -98,7 +98,7 @@ const TransferTicketModalCustom = ({ modalOpen, onClose, ticketid }) => {
 
   const handleSaveTicket = async (e) => {
     e.preventDefault();
-    if (!ticketid) return;
+    if (!ticket.id) return;
     if (!selectedQueue || selectedQueue === "") return;
     setLoading(true);
     try {
@@ -117,7 +117,7 @@ const TransferTicketModalCustom = ({ modalOpen, onClose, ticketid }) => {
         }
       }
 
-      await api.put(`/tickets/${ticketid}`, data);
+      await api.put(`/tickets/${ticket.id}`, {...data,whatsappId: ticket.whatsappId});
 
       history.push(`/tickets`);
     } catch (err) {

@@ -5,6 +5,7 @@ import { getIO } from "../libs/socket";
 import ListContactsService from "../services/ContactServices/ListContactsService";
 import CreateContactService from "../services/ContactServices/CreateContactService";
 import ShowContactService from "../services/ContactServices/ShowContactService";
+import ShowContactByNumberService from "../services/ContactServices/ShowContactByNumberService";
 import UpdateContactService from "../services/ContactServices/UpdateContactService";
 import DeleteContactService from "../services/ContactServices/DeleteContactService";
 import GetContactService from "../services/ContactServices/GetContactService";
@@ -17,10 +18,12 @@ import SimpleListService, {
   SearchContactParams
 } from "../services/ContactServices/SimpleListService";
 import ContactCustomField from "../models/ContactCustomField";
+import Contact from "../models/Contact";
 
 type IndexQuery = {
+  isGroup: boolean;
   searchParam: string;
-  pageNumber: string;
+  category: string;
 };
 
 type IndexGetContactQuery = {
@@ -35,21 +38,28 @@ interface ExtraInfo extends ContactCustomField {
 interface ContactData {
   name: string;
   number: string;
+  category?: string;
+  receiveCritical?: boolean;
+  receivePendency?: boolean;
+  receiveReview?: boolean;
+  specialty?: string;
   email?: string;
   extraInfo?: ExtraInfo[];
+  origensId?: number
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { searchParam, pageNumber } = req.query as IndexQuery;
+  const { searchParam,category, isGroup} = req.query as unknown as IndexQuery;
   const { companyId } = req.user;
 
-  const { contacts, count, hasMore } = await ListContactsService({
+  const { contacts, count } = await ListContactsService({
+    isGroup,
+    category,
     searchParam,
-    pageNumber,
     companyId
   });
 
-  return res.json({ contacts, count, hasMore });
+  return res.json({ contacts, count });
 };
 
 export const getContact = async (
@@ -72,6 +82,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   const { companyId } = req.user;
   const newContact: ContactData = req.body;
   newContact.number = newContact.number.replace("-", "").replace(" ", "");
+
+  console.log(newContact);
 
   const schema = Yup.object().shape({
     name: Yup.string().required(),
@@ -111,6 +123,27 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   return res.status(200).json(contact);
 };
 
+export const vcard = async (req: Request, res: Response): Promise<Response> => {
+  const { companyId } = req.user;
+  const registros = req.body;
+  let contacts = [];
+  let contact;
+
+  for (const r of registros) {
+    if(r.isValid && r.number){
+      contact = await Contact.findOne({where:{number: r.number, companyId: companyId}});
+      if(!contact){
+        contact = await CreateContactService({name: r.name, number: r.number, companyId: companyId});
+      }
+      contacts.push({id:contact.id, profilePicUrl: contact.profilePicUrl, name: contact.name, number: contact.number, isValid: true});
+    }else{
+      contacts.push({id: null, profilePicUrl: "", name: r.name, number: r.number, isValid: false});
+    }
+  }
+
+  return res.status(200).json(contacts);
+};
+
 export const show = async (req: Request, res: Response): Promise<Response> => {
   const { contactId } = req.params;
   const { companyId } = req.user;
@@ -120,6 +153,19 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
   return res.status(200).json(contact);
 };
 
+export const getContactByNumber = async (req: Request, res: Response): Promise<Response> => {
+  const { number } = req.params;
+  const { companyId } = req.user;
+
+  const contact = await ShowContactByNumberService(number, companyId);
+
+  if(contact){
+    return res.status(200).json(contact);
+  }
+
+  return res.status(200).json("");
+};
+
 export const update = async (
   req: Request,
   res: Response
@@ -127,12 +173,9 @@ export const update = async (
   const contactData: ContactData = req.body;
   const { companyId } = req.user;
 
+
   const schema = Yup.object().shape({
-    name: Yup.string(),
-    number: Yup.string().matches(
-      /^\d+$/,
-      "Invalid number format. Only numbers is allowed."
-    )
+    name: Yup.string()
   });
 
   try {
@@ -140,11 +183,6 @@ export const update = async (
   } catch (err: any) {
     throw new AppError(err.message);
   }
-
-  await CheckIsValidContact(contactData.number, companyId);
-  const validNumber = await CheckContactNumber(contactData.number, companyId);
-  const number = validNumber.jid.replace(/\D/g, "");
-  contactData.number = number;
 
   const { contactId } = req.params;
 

@@ -13,7 +13,8 @@ const tokenAuth = async (req: Request, res: Response, next: NextFunction): Promi
     const whatsapp = await Whatsapp.findOne({ where: { token } });
     if (whatsapp) {
       req.params = {
-        whatsappId: whatsapp.id.toString()
+        whatsappId: whatsapp.id.toString(),
+        companyId: whatsapp.companyId.toString()
       }
     } else {
       throw new Error();

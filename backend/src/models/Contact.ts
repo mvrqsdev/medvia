@@ -10,6 +10,7 @@ import {
   Unique,
   Default,
   HasMany,
+  HasOne,
   ForeignKey,
   BelongsTo
 } from "sequelize-typescript";
@@ -17,6 +18,7 @@ import ContactCustomField from "./ContactCustomField";
 import Ticket from "./Ticket";
 import Company from "./Company";
 import Schedule from "./Schedule";
+import Origen from "./Origen";
 
 @Table
 class Contact extends Model<Contact> {
@@ -46,6 +48,25 @@ class Contact extends Model<Contact> {
   @Column
   isGroup: boolean;
 
+  @Default("other")
+  @Column
+  category: string;
+
+  @Column
+  specialty: string;
+  
+  @Default(false)
+  @Column
+  receiveCritical: boolean;
+
+  @Default(false)
+  @Column
+  receivePendency: boolean;
+
+  @Default(false)
+  @Column
+  receiveReview: boolean;
+
   @CreatedAt
   createdAt: Date;
 
@@ -61,6 +82,13 @@ class Contact extends Model<Contact> {
   @ForeignKey(() => Company)
   @Column
   companyId: number;
+
+  @ForeignKey(() => Origen)
+  @Column
+  origensId: number;
+
+  @BelongsTo(() => Origen)
+  origen: Origen;
 
   @BelongsTo(() => Company)
   company: Company;

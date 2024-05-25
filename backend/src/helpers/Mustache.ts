@@ -23,7 +23,7 @@ export default (body: string, contact: Contact): string => {
   if (hh >= 6) {
     ms = "Bom dia";
   }
-  if (hh > 11) {
+  if (hh > 12) {
     ms = "Boa tarde";
   }
   if (hh > 17) {

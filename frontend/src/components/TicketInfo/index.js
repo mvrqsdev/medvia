@@ -4,6 +4,8 @@ import { Avatar, CardHeader } from "@material-ui/core";
 
 import { i18n } from "../../translate/i18n";
 
+import Chip from "@material-ui/core/Chip";
+
 const TicketInfo = ({ contact, ticket, onClick }) => {
 	const { user } = ticket
 	const [userName, setUserName] = useState('')
@@ -33,7 +35,7 @@ const TicketInfo = ({ contact, ticket, onClick }) => {
 	return (
 		<CardHeader
 			onClick={onClick}
-			style={{ cursor: "pointer" }}
+			style={{ cursor: "pointer"}}
 			titleTypographyProps={{ noWrap: true }}
 			subheaderTypographyProps={{ noWrap: true }}
 			avatar={<Avatar src={contact.profilePicUrl} alt="contact_image" />}

@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import clsx from "clsx";
 import moment from "moment";
+import { toast, ToastContainer } from "react-toastify";
 import {
   makeStyles,
   Drawer,
@@ -14,7 +15,12 @@ import {
   Menu,
   useTheme,
   useMediaQuery,
+  LinearProgress,
+  Visi
 } from "@material-ui/core";
+
+
+
 
 import MenuIcon from "@material-ui/icons/Menu";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
@@ -31,18 +37,22 @@ import DarkMode from "../components/DarkMode";
 import { i18n } from "../translate/i18n";
 import toastError from "../errors/toastError";
 import AnnouncementsPopover from "../components/AnnouncementsPopover";
+import Teste from "../components/Teste";
 
 import logo2 from "../assets/logo2.png";
 import { socketConnection } from "../services/socket";
 import ChatPopover from "../pages/Chat/ChatPopover";
+
+import {CornerDialog } from 'evergreen-ui'
 
 import { useDate } from "../hooks/useDate";
 
 import ColorModeContext from "../layout/themeContext";
 import Brightness4Icon from '@material-ui/icons/Brightness4';
 import Brightness7Icon from '@material-ui/icons/Brightness7';
+import zIndex from "@material-ui/core/styles/zIndex";
 
-const drawerWidth = 200;
+const drawerWidth = 250;
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -55,7 +65,7 @@ const useStyles = makeStyles((theme) => ({
     '& .MuiButton-outlinedPrimary': {
       color: theme.mode === 'light' ? '#00BFFF' : '#FFF',
       border: theme.mode === 'light' ? '1px solid rgba(0 124 102)' : '1px solid rgba(255, 255, 255, 0.5)',
-    },
+   },
     '& .MuiTab-textColorPrimary.Mui-selected': {
       color: theme.mode === 'light' ? '#00BFFF' : '#FFF',
     }
@@ -162,7 +172,7 @@ const useStyles = makeStyles((theme) => ({
     // color: theme.barraSuperior.secondary.main,
   },
   logo: {
-    width: "80%",
+    width: "60%",
     height: "auto",
     padding: "15px",
     maxWidth: 180,
@@ -172,6 +182,18 @@ const useStyles = makeStyles((theme) => ({
       maxWidth: 180,
     },
     logo: theme.logo
+  },
+  centerBottom: {
+    position: 'fixed',
+    bottom: '20px', /* Ajuste conforme necessário */
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: '#444',
+    color: '#fff',
+    padding: '10px 20px',
+    borderRadius: '5px',
+    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+    textAlign: 'center',
   },
 }));
 
@@ -189,58 +211,16 @@ const LoggedInLayout = ({ children, themeToggle }) => {
   const theme = useTheme();
   const { colorMode } = useContext(ColorModeContext);
   const greaterThenSm = useMediaQuery(theme.breakpoints.up("sm"));
+  const [selectedReview , setSelectedReview] = useState(null);
 
   const [volume, setVolume] = useState(localStorage.getItem("volume") || 1);
+
+  const [isShow, setIsShow] = useState(false);
+  const [selectedNotify, setSelectedNotify] = useState([]);
 
   const { dateToClient } = useDate();
 
 
-  //################### CODIGOS DE TESTE #########################################
-  // useEffect(() => {
-  //   navigator.getBattery().then((battery) => {
-  //     console.log(`Battery Charging: ${battery.charging}`);
-  //     console.log(`Battery Level: ${battery.level * 100}%`);
-  //     console.log(`Charging Time: ${battery.chargingTime}`);
-  //     console.log(`Discharging Time: ${battery.dischargingTime}`);
-  //   })
-  // }, []);
-
-  // useEffect(() => {
-  //   const geoLocation = navigator.geolocation
-
-  //   geoLocation.getCurrentPosition((position) => {
-  //     let lat = position.coords.latitude;
-  //     let long = position.coords.longitude;
-
-  //     console.log('latitude: ', lat)
-  //     console.log('longitude: ', long)
-  //   })
-  // }, []);
-
-  // useEffect(() => {
-  //   const nucleos = window.navigator.hardwareConcurrency;
-
-  //   console.log('Nucleos: ', nucleos)
-  // }, []);
-
-  // useEffect(() => {
-  //   console.log('userAgent', navigator.userAgent)
-  //   if (
-  //     navigator.userAgent.match(/Android/i)
-  //     || navigator.userAgent.match(/webOS/i)
-  //     || navigator.userAgent.match(/iPhone/i)
-  //     || navigator.userAgent.match(/iPad/i)
-  //     || navigator.userAgent.match(/iPod/i)
-  //     || navigator.userAgent.match(/BlackBerry/i)
-  //     || navigator.userAgent.match(/Windows Phone/i)
-  //   ) {
-  //     console.log('é mobile ', true) //celular
-  //   }
-  //   else {
-  //     console.log('não é mobile: ', false) //nao é celular
-  //   }
-  // }, []);
-  //##############################################################################
 
   useEffect(() => {
     if (document.body.offsetWidth > 600) {
@@ -255,6 +235,24 @@ const LoggedInLayout = ({ children, themeToggle }) => {
       setDrawerVariant("permanent");
     }
   }, [drawerOpen]);
+
+  const notify = (patientId,text) => {
+    if(selectedNotify.indexOf(patientId) !== -1) return;
+
+    setSelectedNotify(prev => ({ ...prev, patientId }));
+
+    toast(text, {
+      toastId: patientId,
+      position: "bottom-center",
+      autoClose: 20000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "light",
+      });
+  }
 
   useEffect(() => {
     const companyId = localStorage.getItem("companyId");
@@ -271,6 +269,28 @@ const LoggedInLayout = ({ children, themeToggle }) => {
         }, 1000);
       }
     });
+
+
+    
+
+    socket.on(`alert-exam-pacs`,(data) => {
+      if(data.type === "newReview"){
+        notify(data.exam.patientId, `Nova revisão de ${data.origen.name}`);
+      }
+
+      if(data.type === "newCritical"){
+        notify(data.exam.patientId, `Novo achado crítico registrado.`);
+        
+      }
+
+      if(data.type === "noOrigen"){
+        notify(data.exam.patientId, `Um exame sem origem foi registrado no sistema.`);
+      }
+    })
+
+    
+    
+    
 
     socket.emit("userStatus");
     const interval = setInterval(() => {
@@ -330,7 +350,9 @@ const LoggedInLayout = ({ children, themeToggle }) => {
   }
 
   return (
+<>
     <div className={classes.root}>
+
       <Drawer
         variant={drawerVariant}
         className={drawerOpen ? classes.drawerPaper : classes.drawerPaperClose}
@@ -343,7 +365,7 @@ const LoggedInLayout = ({ children, themeToggle }) => {
         open={drawerOpen}
       >
         <div className={classes.toolbarIcon} style={{height: "50px"}}>
-          <img src={logo2} className={classes.logo} alt="logo" />
+          <img src={logo2} className={classes.logo} alt="logo" style={{padding: "10px"}} />
           <IconButton onClick={() => setDrawerOpen(!drawerOpen)}>
             <ChevronLeftIcon />
           </IconButton>
@@ -449,6 +471,9 @@ const LoggedInLayout = ({ children, themeToggle }) => {
               <MenuItem onClick={handleOpenUserModal}>
                 {i18n.t("mainDrawer.appBar.user.profile")}
               </MenuItem>
+              <MenuItem onClick={handleClickLogout}>
+                {i18n.t("mainDrawer.appBar.user.logout")}
+              </MenuItem>
 
             </Menu>
           </div>
@@ -460,6 +485,7 @@ const LoggedInLayout = ({ children, themeToggle }) => {
         {children ? children : null}
       </main>
     </div>
+</>
   );
 };
 

@@ -13,6 +13,11 @@ interface Request {
   isGroup: boolean;
   email?: string;
   profilePicUrl?: string;
+  category?: string;
+  receiveCritical?: boolean;
+  receivePendency?: boolean;
+  receiveReview?: boolean;
+  specialty?: string;
   companyId: number;
   extraInfo?: ExtraInfo[];
 }
@@ -23,6 +28,11 @@ const CreateOrUpdateContactService = async ({
   profilePicUrl,
   isGroup,
   email = "",
+  category = "other",
+  receiveCritical = false,
+  receivePendency = false,
+  receiveReview = false,
+  specialty = "",
   companyId,
   extraInfo = []
 }: Request): Promise<Contact> => {
@@ -52,6 +62,11 @@ const CreateOrUpdateContactService = async ({
       profilePicUrl,
       email,
       isGroup,
+      category,
+      receiveCritical,
+      receivePendency,
+      receiveReview,
+      specialty,
       extraInfo,
       companyId
     });

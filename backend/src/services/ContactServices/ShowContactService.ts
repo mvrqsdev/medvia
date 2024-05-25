@@ -1,11 +1,12 @@
 import Contact from "../../models/Contact";
 import AppError from "../../errors/AppError";
+import Origen from "../../models/Origen";
 
 const ShowContactService = async (
   id: string | number,
   companyId: number
 ): Promise<Contact> => {
-  const contact = await Contact.findByPk(id, { include: ["extraInfo"] });
+  const contact = await Contact.findByPk(id, { include: ["extraInfo","origen"] });
 
   if (contact?.companyId !== companyId) {
     throw new AppError("Não é possível excluir registro de outra empresa");

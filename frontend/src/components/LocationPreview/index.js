@@ -1,9 +1,25 @@
 import React, { useEffect } from 'react';
 import toastError from "../../errors/toastError";
+import locationPreview from "../../assets/locationPreview.webp";
 
-import { Button, Divider, Typography} from "@material-ui/core";
+import { makeStyles } from '@material-ui/core/styles';
+import Card from '@material-ui/core/Card';
+import CardActionArea from '@material-ui/core/CardActionArea';
+import CardActions from '@material-ui/core/CardActions';
+import CardContent from '@material-ui/core/CardContent';
+import CardMedia from '@material-ui/core/CardMedia';
+import Button from '@material-ui/core/Button';
+import Typography from '@material-ui/core/Typography';
+
+const useStyles = makeStyles({
+  root: {
+    maxWidth: 345,
+	margin: "10px"
+  },
+});
 
 const LocationPreview = ({ image, link, description }) => {
+	const classes = useStyles();
     useEffect(() => {}, [image, link, description]);
 
     const handleLocation = async() => {
@@ -15,34 +31,27 @@ const LocationPreview = ({ image, link, description }) => {
     }
 
     return (
-		<>
-			<div style={{
-				minWidth: "250px",
-			}}>
-				<div>
-					<div style={{ float: "left" }}>
-						<img src={image} alt="loc" onClick={handleLocation} style={{ width: "100px" }} />
-					</div>
-					{ description && (
-					<div style={{ display: "flex", flexWrap: "wrap" }}>
-						<Typography style={{ marginTop: "12px", marginLeft: "15px", marginRight: "15px", float: "left" }} variant="subtitle1" color="primary" gutterBottom>
-							<div dangerouslySetInnerHTML={{ __html: description.replace('\\n', '<br />') }}></div>
-						</Typography>
-					</div>
-					)}
-					<div style={{ display: "block", content: "", clear: "both" }}></div>
-					<div>
-						<Divider />
-						<Button
-							fullWidth
-							color="primary"
-							onClick={handleLocation}
-							disabled={!link}
-						>Visualizar</Button>
-					</div>
-				</div>
-			</div>
-		</>
+		<Card className={classes.root}>
+			<CardActionArea onClick={handleLocation}>
+				<CardMedia
+				component="img"
+				alt="Contemplative Reptile"
+				height="140"
+				image={locationPreview}
+				title="Contemplative Reptile"
+				/>
+				<CardContent>
+				<Typography gutterBottom variant="h6" component="h6">
+					Localização
+				</Typography>
+				<Typography variant="body2" color="textSecondary" component="p">
+					Clique aqui para visualizar essa localização.
+				</Typography>
+				</CardContent>
+			</CardActionArea>
+		</Card>
+		
+		
 	);
 
 };

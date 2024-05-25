@@ -47,6 +47,7 @@ const TicketActionButtons = ({ ticket }) => {
 			await api.put(`/tickets/${ticket.id}`, {
 				status: status,
 				userId: userId || null,
+				whatsappId: ticket.whatsappId
 			});
 
 			setLoading(false);

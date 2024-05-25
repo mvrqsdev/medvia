@@ -17,8 +17,11 @@ contactRoutes.get("/contacts", isAuth, ContactController.index);
 contactRoutes.get("/contacts/list", isAuth, ContactController.list);
 
 contactRoutes.get("/contacts/:contactId", isAuth, ContactController.show);
+contactRoutes.get("/contacts/number/:number", isAuth, ContactController.getContactByNumber);
 
 contactRoutes.post("/contacts", isAuth, ContactController.store);
+
+contactRoutes.post("/contacts/vcard", isAuth, ContactController.vcard);
 
 contactRoutes.put("/contacts/:contactId", isAuth, ContactController.update);
 

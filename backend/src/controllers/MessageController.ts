@@ -1,16 +1,20 @@
 import { Request, Response } from "express";
 import AppError from "../errors/AppError";
 
+const fs = require('fs');
+
 import GetDefaultWhatsApp from "../helpers/GetDefaultWhatsApp";
 import { getWbot } from "../libs/wbot";
 import Contact from "../models/Contact"
 import SimpleListService from "../services/ContactServices/SimpleListService";
+import SimpleListOrigemService from "../services/ContactServices/SimpleListOrigemService";
 
 import SetTicketMessagesAsRead from "../helpers/SetTicketMessagesAsRead";
 import { getIO } from "../libs/socket";
 import Message from "../models/Message";
 import Queue from "../models/Queue";
 import User from "../models/User";
+import Ticket from "../models/Ticket";
 import Whatsapp from "../models/Whatsapp";
 
 import ListMessagesService from "../services/MessageServices/ListMessagesService";
@@ -26,6 +30,7 @@ import GetProfilePicUrl from "../services/WbotServices/GetProfilePicUrl";
 import CreateOrUpdateContactService from "../services/ContactServices/CreateOrUpdateContactService"; 
 import { me } from "./SessionController";
 import GetWhatsApp from "../helpers/GetWhatsApp";
+import { start } from "repl";
 type IndexQuery = {
   pageNumber: string;
 };
@@ -40,8 +45,19 @@ type MessageData = {
 };
 
 type DataMessage = {
-  body: string;
-  number?: string;
+  id: string;
+  text: string;
+}
+
+
+type DataOrigem = {
+  origem: string;
+}
+
+type DataToFoward = {
+  message: Message;
+  contact: Contact;
+  ticket: Ticket;
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -112,107 +128,6 @@ export const remove = async (
   return res.send();
 };
 
-// export const send = async (req: Request, res: Response): Promise<Response> => {
-//   const { whatsappId } = req.params as unknown as { whatsappId: number };
-//   const messageData: MessageData = req.body;
-//   const medias = req.files as Express.Multer.File[];
-
-//   try {
-//     const whatsapp = await Whatsapp.findByPk(whatsappId);
-
-//     if (!whatsapp) {
-//       throw new Error("Não foi possível realizar a operação");
-//     }
-
-//     if (messageData.number === undefined) {
-//       throw new Error("O número é obrigatório");
-//     }
-
-//     const numberToTest = messageData.number;
-//     const body = messageData.body;
-
-//     const companyId = whatsapp.companyId;
-
-//     const CheckValidNumber = await CheckContactNumber(numberToTest, companyId);
-//     const number = CheckValidNumber.jid.replace(/\D/g, "");
-//     const profilePicUrl = await GetProfilePicUrl(
-//       number,
-//       companyId
-//     );
-//     const contactData = {
-//       name: `${number}`,
-//       number,
-//       profilePicUrl,
-//       isGroup: false,
-//       companyId
-//     };
-
-//     const contact = await CreateOrUpdateContactService(contactData);
-
-//     const createTicket = await FindOrCreateTicketService(contact, whatsapp.id!, 0, companyId);
-
-//     const ticket = await ShowTicketService(createTicket.id, companyId);
-  
-
-//     if (medias) {
-//       await Promise.all(
-//         medias.map(async (media: Express.Multer.File) => {
-//           await req.app.get("queues").messageQueue.add(
-//             "SendMessage",
-//             {
-//               whatsappId,
-//               data: {
-//                 number,
-//                 body: media.originalname,
-//                 mediaPath: media.path
-//               }
-//             },
-//             { removeOnComplete: true, attempts: 3 }
-//           );
-//         })
-//       );
-//     } else {
-//       await SendWhatsAppMessage({ body, ticket });
-//       setTimeout(async () => {
-//         await UpdateTicketService({
-//           ticketId: ticket.id,
-//           ticketData: { status: "closed" },
-//           companyId
-//         });
-//       }, 1000);
-//       await createTicket.update({
-//         lastMessage: body,
-//       });
-// /*       req.app.get("queues").messageQueue.add(
-//         "SendMessage",
-//         {
-//           whatsappId,
-//           data: {
-//             number,
-//             body
-//           }
-//         },
-
-//         { removeOnComplete: false, attempts: 3 }
-
-//       ); */
-//     }
-
-//     SetTicketMessagesAsRead(ticket);
-
-//     return res.send({ mensagem: "Mensagem enviada" });
-//   } catch (err: any) {
-//     if (Object.keys(err).length === 0) {
-//       throw new AppError(
-//         "Não foi possível enviar a mensagem, tente novamente em alguns instantes"
-//       );
-//     } else {
-//       throw new AppError(err.message);
-//     }
-//   }
-// };
-
-
 
 
 
@@ -223,25 +138,148 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
   
 
   try {
-    const whatsapp = await Whatsapp.findByPk(whatsappId);
+    const whatsapp = await Whatsapp.findOne({where:{id: whatsappId}});
 
     if (!whatsapp) {
       throw new Error("Não foi possível realizar a operação");
     }
 
-    if (messageData.number === undefined) {
+    if (messageData.id === undefined) {
       throw new Error("O número é obrigatório");
     }
 
+    if (messageData.text === undefined) {
+      throw new Error("O texto é obrigatório");
+    }
 
-    const companyId = whatsapp.companyId;
-    const defaultWhatsapp = await GetWhatsApp(companyId);
 
-    const wbot = getWbot(defaultWhatsapp.id);
-    await wbot.sendMessage(messageData.number,{ text: messageData.body});
+    const wbot = getWbot(whatsapp.id);
+    await wbot.sendMessage(messageData.id,{ text: messageData.text});
 
 
     return res.send({ mensagem: "Mensagem enviada" });
+  } catch (err: any) {
+    if (Object.keys(err).length === 0) {
+      throw new AppError(
+        "Não foi possível enviar a mensagem, tente novamente em alguns instantes"
+      );
+    } else {
+      throw new AppError(err.message);
+    }
+  }
+};
+export const tofoward = async (req: Request, res: Response): Promise<Response> => {
+  const { companyId, profile } = req.user;
+  const {message, ticket, contact}: DataToFoward = req.body;
+  
+
+  
+
+  try {
+    const whatsapp = await Whatsapp.findOne({where:{id: ticket.whatsappId}});
+
+    if (!whatsapp) {
+      throw new Error("Não foi possível realizar a operação");
+    }
+
+    if (!contact) {
+      throw new Error("O contato é obrigatório");
+    }
+
+    if(!message){
+      throw new Error("Nenhum contato com este Id");
+    }
+
+    const wbot = getWbot(whatsapp.id);
+
+    const mediaType = message.mediaType;
+    const idSend = `${contact.number}${contact.isGroup ? "@g.us" : "@s.whatsapp.net"}`;
+
+    const dataJson = JSON.parse(message.dataJson);
+    const vcards = dataJson.message?.contactsArrayMessage?.contacts || [dataJson.message?.contactMessage];
+
+    if(message.mediaType === "conversation" || message.mediaType === "extendedTextMessage"){
+      await wbot.sendMessage(
+        idSend,
+        {text: message.body}
+      )
+    }else if(message.mediaType === "audio"){
+      const name = message.mediaUrl.replace(/.*\/public\//, '');
+
+      await wbot.sendMessage(
+        idSend, 
+        { audio: { url: `public/${name}` }},
+      );
+      
+    }else if(message.mediaType === "video"){
+      const name = message.mediaUrl.replace(/.*\/public\//, '');
+
+      await wbot.sendMessage(
+        idSend, 
+        { 
+            video: fs.readFileSync(`public/${name}`), 
+            caption: ""
+        }
+      );
+
+    }else if(message.mediaType === "image"){
+      const name = message.mediaUrl.replace(/.*\/public\//, '');
+
+      await wbot.sendMessage(
+        idSend, 
+        { 
+            image: {
+              url: `public/${name}`
+            }, 
+            caption: ""
+        }
+      );
+
+    }else if(message.mediaType.includes("application")){
+      const file = message.mediaUrl.replace(/.*\/public\//, '');
+
+      await wbot.sendMessage(
+        idSend, 
+        { 
+            document: fs.readFileSync(`public/${file}`),
+            fileName: file, 
+            mimetype: message.mediaType
+        }
+      );
+
+    }else if(message.mediaType === "locationMessage"){
+      await wbot.sendMessage(
+        idSend,
+        {
+          location: {
+            degreesLatitude: dataJson.message?.locationMessage?.degreesLatitude,
+            degreesLongitude: dataJson.message?.locationMessage?.degreesLongitude
+          }
+        }
+      )
+
+    }else if(vcards){
+      for(let index = 0; index < vcards.length ; index++){
+        let vcard = vcards[index].vcard;
+
+        await wbot.sendMessage(
+          idSend,
+          {
+            contacts: {
+              displayName: vcards[index].displayName,
+              contacts: [{vcard}]
+            }
+          }
+        )
+      }
+    }else{
+      throw new Error("Nenhum tipo de mensagem valida para encaminhar");
+    }
+    
+
+
+
+    return res.send({contact: contact, message: message, ticket: ticket, dataJson: dataJson});
   } catch (err: any) {
     if (Object.keys(err).length === 0) {
       throw new AppError(
@@ -274,6 +312,43 @@ export const chats = async (req: Request, res: Response): Promise<Response> => {
     if (Object.keys(err).length === 0) {
       throw new AppError(
         "Não foi possível enviar a mensagem, tente novamente em alguns instantes"
+      );
+    } else {
+      throw new AppError(err.message);
+    }
+  }
+};
+
+export const origens = async (req: Request, res: Response): Promise<Response> => {
+  const { whatsappId } = req.params as unknown as { whatsappId: number };
+  const dados: DataOrigem = req.body;
+  
+
+  try {
+    const whatsapp = await Whatsapp.findByPk(whatsappId);
+
+    if (!whatsapp) {
+      throw new Error("Não foi possível realizar a operação");
+    }
+
+    if (!dados.origem){
+      return res.send({status: false});
+    }
+
+
+    const companyId = whatsapp.companyId;
+    const resposta = await SimpleListOrigemService({origem: dados.origem,companyId});
+
+    if(resposta.length === 0){
+      return res.send({status: false});
+    }
+
+
+    return res.send(resposta);
+  } catch (err: any) {
+    if (Object.keys(err).length === 0) {
+      throw new AppError(
+        "Não foi possível obter as origens, tente novamente em alguns instantes"
       );
     } else {
       throw new AppError(err.message);

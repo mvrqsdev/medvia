@@ -105,6 +105,20 @@ export default function Options(props) {
   const [clientsecretmkauthType, setClientSecrectMkauthType] = useState("");
   const [loadingClientSecrectMkauthType, setLoadingClientSecrectMkauthType] = useState(false);
 
+
+  // Teams
+  const [urlGroupsTeams, setUrlGroupsTeams] = useState("");
+  const [loadingGroupsTeams, setLoadingGroupsTeams] = useState(false);
+
+  const [urlMessageTeams, setUrlMessageTeams] = useState("");
+  const [loadingMessageTeams, setLoadingMessageTeams] = useState(false);
+
+  const [tokenTeams, setTokenTeams] = useState("");
+  const [loadingTokenTeams, setLoadingTokenTeams] = useState(false);
+
+
+  // ASSAS
+
   const [asaasType, setAsaasType] = useState("");
   const [loadingAsaasType, setLoadingAsaasType] = useState(false);
   
@@ -185,6 +199,22 @@ export default function Options(props) {
       if (asaasType) {
         setAsaasType(asaasType.value);
       }
+
+      const urlGroupsTeams = settings.find((s) => s.key === "urlGroupTeams");
+      if (urlGroupsTeams) {
+        setUrlGroupsTeams(urlGroupsTeams.value);
+      }
+
+      const urlMessageTeams = settings.find((s) => s.key === "urlMessageTeams");
+      if (urlMessageTeams) {
+        setUrlMessageTeams(urlMessageTeams.value);
+      }
+
+      const tokenTeams = settings.find((s) => s.key === "tokenTeams");
+      if (tokenTeams) {
+        setTokenTeams(tokenTeams.value);
+      }
+      
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
@@ -351,6 +381,41 @@ export default function Options(props) {
     toast.success("Operação atualizada com sucesso.");
     setLoadingAsaasType(false);
   }
+
+  async function handleChangeUrlGroupTeams(value) {
+    setUrlGroupsTeams(value);
+    setLoadingGroupsTeams(true);
+    await update({
+      key: "urlGroupTeams",
+      value,
+    });
+    toast.success("Operação atualizada com sucesso.");
+    setLoadingGroupsTeams(false);
+  }
+  
+  async function handleChangeUrlMessageTeams(value) {
+    setUrlMessageTeams(value);
+    setLoadingMessageTeams(true);
+    await update({
+      key: "urlMessageTeams",
+      value,
+    });
+    toast.success("Operação atualizada com sucesso.");
+    setLoadingMessageTeams(false);
+  }
+
+  async function handleChangeTokenTeams(value) {
+    setTokenTeams(value);
+    setLoadingTokenTeams(true);
+    await update({
+      key: "tokenTeams",
+      value,
+    });
+    toast.success("Operação atualizada com sucesso.");
+    setLoadingTokenTeams(false);
+  }
+
+
   return (
     <>
       <Grid spacing={3} container>
@@ -512,13 +577,75 @@ export default function Options(props) {
         >
           <Tab
 
-            label="INTEGRAÇÕES" />
+            label="Integrações com Teams" />
 
         </Tabs>
 
       </Grid>
-      {/*-----------------IXC-----------------*/}
       <Grid spacing={3} container
+        style={{ marginBottom: 10 }}>
+          
+          <Tab label="WEBHOOK GRUPOS" />
+          <FormControl className={classes.selectContainer}>
+            <TextField
+              id="urlGroupTeams"
+              name="urlGroupTeams"
+              margin="dense"
+              label="Webhook"
+              variant="outlined"
+              value={urlGroupsTeams}
+              onChange={async (e) => {
+                handleChangeUrlGroupTeams(e.target.value);
+              }}
+            >
+            </TextField>
+            <FormHelperText>
+              {loadingGroupsTeams && "Atualizando..."}
+            </FormHelperText>
+          </FormControl>
+          <Tab label="WEBHOOK MENSAGEM TEAMS" />
+          <FormControl className={classes.selectContainer}>
+            <TextField
+              id="urlMessageTeams"
+              name="urlMessageTeams"
+              margin="dense"
+              label="Webhook"
+              variant="outlined"
+              value={urlMessageTeams}
+              onChange={async (e) => {
+                handleChangeUrlMessageTeams(e.target.value);
+              }}
+            >
+            </TextField>
+            <FormHelperText>
+              {loadingMessageTeams && "Atualizando..."}
+            </FormHelperText>
+          </FormControl>
+          <Tab label="TOKEN TEAMS" />
+          <FormControl className={classes.selectContainer}>
+            <TextField
+              id="tokenTeams"
+              name="tokenTeams"
+              margin="dense"
+              label="Token"
+              type="password"
+              variant="outlined"
+              value={tokenTeams}
+              onChange={async (e) => {
+                handleChangeTokenTeams(e.target.value);
+              }}
+            >
+            </TextField>
+            <FormHelperText>
+              {loadingTokenTeams && "Atualizando..."}
+            </FormHelperText>
+          </FormControl>
+        <Grid xs={12} sm={12} md={12} item>
+          
+        </Grid>
+      </Grid>
+      {/*-----------------IXC-----------------*/}
+      {/* <Grid spacing={3} container
         style={{ marginBottom: 10 }}>
         <Tabs
           indicatorColor="primary"
@@ -570,9 +697,9 @@ export default function Options(props) {
             </FormHelperText>
           </FormControl>
         </Grid>
-      </Grid>
+      </Grid> */}
       {/*-----------------MK-AUTH-----------------*/}
-      <Grid spacing={3} container
+      {/* <Grid spacing={3} container
         style={{ marginBottom: 10 }}>
         <Tabs
           indicatorColor="primary"
@@ -641,9 +768,9 @@ export default function Options(props) {
             </FormHelperText>
           </FormControl>
         </Grid>
-      </Grid>
+      </Grid> */}
       {/*-----------------ASAAS-----------------*/}
-      <Grid spacing={3} container
+      {/* <Grid spacing={3} container
         style={{ marginBottom: 10 }}>
         <Tabs
           indicatorColor="primary"
@@ -674,7 +801,7 @@ export default function Options(props) {
             </FormHelperText>
           </FormControl>
         </Grid>
-      </Grid>
+      </Grid> */}
     </>
   );
 }

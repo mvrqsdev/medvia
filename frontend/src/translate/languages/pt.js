@@ -144,6 +144,9 @@ const messages = {
         table: {
           name: "Nome",
           whatsapp: "WhatsApp",
+          specialty: "Especialidade",
+          category: "Categoria",
+          origem: "Origem",
           email: "Email",
           actions: "Ações",
         },
@@ -159,8 +162,11 @@ const messages = {
           name: "Nome",
           number: "Número do Whatsapp",
           email: "Email",
+          origem: "Nome da Origem no PACS",
           extraName: "Nome do campo",
           extraValue: "Valor",
+          category: "Categoria",
+          specialty: "Especialidade",
         },
         buttons: {
           addExtraInfo: "Adicionar informação",
@@ -200,6 +206,8 @@ const messages = {
           email: "Email",
           password: "Senha",
           profile: "Perfil",
+          whatsapp: "Selecione o Telefone",
+          admin: "Administrador",
           user: "Atendente",
           startWork: "Inicio",
           endWork: "Termino"
@@ -708,7 +716,7 @@ const messages = {
           placeholder: "Insira aqui a informação que deseja registrar",
         },
         confirmationModal: {
-          title: "Deletar o atendimento do contato",
+          title: "Deletar o atendimento de(a)",
           message:
             "Atenção! Todas as mensagens relacionadas ao atendimento serão perdidas.",
         },
@@ -723,13 +731,21 @@ const messages = {
           cancel: "Cancelar",
         },
       },
+      toFowardMenu: {
+        title: "Encaminhar Mensagem",
+        button: "Encaminhar"
+      },
       messageOptionsMenu: {
         delete: "Deletar",
         reply: "Responder",
+        toFoward: "Encaminhar",
         confirmationModal: {
           title: "Apagar mensagem?",
           message: "Esta ação não pode ser revertida.",
         },
+      },
+      groupMembersModal:{
+        title: "Membros do Grupo"
       },
       backendErrors: {
         ERR_NO_OTHER_WHATSAPP: "Deve haver pelo menos um WhatsApp padrão.",

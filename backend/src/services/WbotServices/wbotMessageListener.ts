@@ -320,7 +320,7 @@ export const getBodyMessage = (msg: proto.IWebMessageInfo): string | null => {
       viewOnceMessage: getBodyButton(msg) || msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId,
       stickerMessage: "sticker",
       contactMessage: msg.message?.contactMessage?.vcard,
-      contactsArrayMessage: "varios contatos",
+      contactsArrayMessage: msg?.message?.contactsArrayMessage?.contacts,
       //locationMessage: `Latitude: ${msg.message.locationMessage?.degreesLatitude} - Longitude: ${msg.message.locationMessage?.degreesLongitude}`,
       locationMessage: msgLocation(
         msg.message?.locationMessage?.jpegThumbnail,
@@ -349,7 +349,7 @@ ${JSON.stringify(msg)}`);
   } catch (error) {
     Sentry.setExtra("Error getTypeMessage", { msg, BodyMsg: msg.message });
     Sentry.captureException(error);
-    console.log(error);
+    // //console.log(error);
   }
 };
 
@@ -445,7 +445,7 @@ const downloadMedia = async (msg: proto.IWebMessageInfo) => {
     msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage;
 
   if (!mineType)
-    console.log(msg)
+    // //console.log(msg)
 
   if (!filename) {
     const ext = mineType.mimetype.split("/")[1].split(";")[0];
@@ -479,7 +479,7 @@ const verifyContact = async (
 
   const contactData = {
     name: msgContact?.name || msgContact.id.replace(/\D/g, ""),
-    number: msgContact.id.substr(0,msgContact.id.indexOf("@")),
+    number: msgContact.id.replace(/\D/g, ""),
     profilePicUrl,
     isGroup: msgContact.id.includes("g.us"),
     companyId,
@@ -538,7 +538,18 @@ const verifyMediaMessage = async (
     logger.error(err);
   }
 
-  const body = getBodyMessage(msg);
+  let body = getBodyMessage(msg);
+
+  if(msg.message?.contactMessage?.vcard){
+    body = `1 Contato`;
+  }
+  
+  if(msg.message?.contactsArrayMessage?.contacts){
+    body = `${msg.message?.contactsArrayMessage?.contacts.length} Contatos`;
+  }
+
+  
+
 
   const messageData = {
     id: msg.key.id,
@@ -600,7 +611,18 @@ export const verifyMessage = async (
 ) => {
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg);
-  const body = getBodyMessage(msg);
+  let body = getBodyMessage(msg);
+
+
+  if(msg.message?.contactMessage?.vcard){
+    body = `1 Contato`;
+  }
+  
+  if(msg.message?.contactsArrayMessage?.contacts){
+    body = `${msg.message?.contactsArrayMessage?.contacts.length} Contatos`;
+  }
+
+  
 
   const messageData = {
     id: msg.key.id,
@@ -621,7 +643,8 @@ export const verifyMessage = async (
     lastMessage: body
   });
 
-  await CreateMessageService({ messageData, companyId: ticket.companyId });
+  const teste = await CreateMessageService({ messageData, companyId: ticket.companyId });
+
 
   if (!msg.key.fromMe && ticket.status === "closed") {
     await ticket.update({ status: "pending" });
@@ -728,7 +751,16 @@ const verifyQueue = async (
     return;
   }
 
-  const selectedOption = getBodyMessage(msg);
+  let selectedOption = getBodyMessage(msg);
+
+  if(msg.message?.contactMessage?.vcard){
+    selectedOption = `1 Contato`;
+  }
+  
+  if(msg.message?.contactsArrayMessage?.contacts){
+    selectedOption = `${msg.message?.contactsArrayMessage?.contacts.length} Contatos`;
+  }
+
   const choosenQueue = queues[+selectedOption - 1];
 
   const companyId = ticket.companyId;
@@ -985,7 +1017,17 @@ const handleChartbot = async (ticket: Ticket, msg: WAMessage, wbot: Session, don
 
 
 
-  const messageBody = getBodyMessage(msg);
+  let messageBody = getBodyMessage(msg);
+
+  if(msg.message?.contactMessage?.vcard){
+    messageBody = `1 Contato`;
+  }
+  
+  if(msg.message?.contactsArrayMessage?.contacts){
+    messageBody = `${msg.message?.contactsArrayMessage?.contacts.length} Contatos`;
+  }
+
+
 
   if (messageBody == "#") {
     // voltar para o menu inicial
@@ -1287,29 +1329,46 @@ const handleMessage = async (
       },
     });
 
-    const bodyMessage = getBodyMessage(msg);
-    const msgType = getTypeMessage(msg);
+    let bodyMessage = getBodyMessage(msg);
 
+    if(msg.message?.contactMessage?.vcard){
+      bodyMessage = `1 Contato`;
+    }
+    
+    if(msg.message?.contactsArrayMessage?.contacts){
+      bodyMessage = `${msg.message?.contactsArrayMessage?.contacts.length} Contatos`;
+    }
+  
+    
+
+
+    let msgType = getTypeMessage(msg);
+
+    msgType = msg.message?.contactMessage?.vcard || msg.message?.contactsArrayMessage?.contacts ? "vcard" : msgType;
+    
     const hasMedia =
       msg.message?.audioMessage ||
       msg.message?.imageMessage ||
       msg.message?.videoMessage ||
       msg.message?.documentMessage ||
-      msg.message.stickerMessage;
+      msg.message?.stickerMessage;
+
+
     if (msg.key.fromMe) {
       if (/\u200e/.test(bodyMessage)) return;
 
-      if (
-        !hasMedia &&
-        msgType !== "conversation" &&
-        msgType !== "extendedTextMessage" &&
-        msgType !== "vcard"
-      )
-        return;
+      if(!hasMedia && msgType !== "conversation" && msgType !== "extendedTextMessage" && msgType !== "locationMessage" && msgType !== "vcard") return;
+
       msgContact = await getContactMessage(msg, wbot);
+      
     } else {
       msgContact = await getContactMessage(msg, wbot);
     }
+
+
+
+    
+    // 
 
     if (msgIsGroupBlock?.value === "enabled" && isGroup) return;
 
@@ -1381,7 +1440,6 @@ const handleMessage = async (
         /**
          * Tratamento para avaliação do atendente
          */
-        // console.log("passou aqui")
         //  // dev Ricardo: insistir a responder avaliação 
         //  const rate_ = Number(bodyMessage);
 
@@ -1405,15 +1463,14 @@ const handleMessage = async (
         //  // dev Ricardo
 
         if (ticketTraking !== null && verifyRating(ticketTraking)) {
-          console.log("entrou no if")
           handleRating(parseFloat(bodyMessage), ticket, ticketTraking);
           return;
         }
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
     }
+
 
 
     if (hasMedia) {
@@ -1421,6 +1478,7 @@ const handleMessage = async (
     } else {
       await verifyMessage(msg, ticket, contact);
     }
+
 
     const currentSchedule = await VerifyCurrentSchedule(companyId);
     const scheduleType = await Setting.findOne({
@@ -1517,7 +1575,7 @@ const handleMessage = async (
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
+      
     }
 
     try {
@@ -1529,7 +1587,7 @@ const handleMessage = async (
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
+      
     }
 
     if (
@@ -1602,7 +1660,7 @@ const handleMessage = async (
       }
     } catch (e) {
       Sentry.captureException(e);
-      console.log(e);
+      // //console.log(e);
     }
 
 
@@ -1655,10 +1713,11 @@ const handleMessage = async (
     }
 
   } catch (err) {
-    console.log(err)
+    // //console.log(err)
     Sentry.captureException(err);
     logger.error(`Error handling whatsapp message: Err: ${err}`);
   }
+
 };
 
 const handleMsgAck = async (
@@ -1735,7 +1794,16 @@ const verifyCampaignMessageAndCloseTicket = async (
   companyId: number
 ) => {
   const io = getIO();
-  const body = getBodyMessage(message);
+  let body = getBodyMessage(message);
+
+  if(message.message?.contactMessage?.vcard){
+    body = `1 Contato`;
+  }
+  
+  if(message.message?.contactsArrayMessage?.contacts){
+    body = `${message.message?.contactsArrayMessage?.contacts.length} Contatos`;
+  }
+
   const isCampaign = /\u200c/.test(body);
   if (message.key.fromMe && isCampaign) {
     const messageRecord = await Message.findOne({
@@ -1786,11 +1854,11 @@ const wbotMessageListener = async (wbot: Session, companyId: number): Promise<vo
       if (!messages) return;
 
       messages.forEach(async (message: proto.IWebMessageInfo) => {
-        // console.log(message)
+        // //console.log(message)
         const messageExists = await Message.count({
           where: { id: message.key.id!, companyId }
         });
-
+        
         if (!messageExists) {
           await handleMessage(message, wbot, companyId);
           await verifyRecentCampaign(message, companyId);

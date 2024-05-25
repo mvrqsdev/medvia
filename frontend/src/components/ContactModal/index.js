@@ -17,6 +17,12 @@ import IconButton from "@material-ui/core/IconButton";
 import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
 import CircularProgress from "@material-ui/core/CircularProgress";
 
+import Autocomplete, {
+	createFilterOptions,
+} from "@material-ui/lab/Autocomplete";
+
+import {Grid, Switch, FormControlLabel,Select,MenuItem, InputLabel, FormControl } from "@material-ui/core";
+
 import { i18n } from "../../translate/i18n";
 
 import api from "../../services/api";
@@ -27,9 +33,19 @@ const useStyles = makeStyles(theme => ({
 		display: "flex",
 		flexWrap: "wrap",
 	},
+	multFieldLine: {
+		display: "flex",
+		"& > *:not(:last-child)": {
+			marginRight: theme.spacing(1),
+		},
+	},
 	textField: {
 		marginRight: theme.spacing(1),
 		flex: 1,
+	},
+	formControl: {
+		minWidth: 120,
+		width: "100%"
 	},
 
 	extraAttr: {
@@ -52,16 +68,19 @@ const useStyles = makeStyles(theme => ({
 	},
 }));
 
+
+
 const ContactSchema = Yup.object().shape({
 	name: Yup.string()
 		.min(2, "Too Short!")
-		.max(50, "Too Long!")
+		.max(120, "Too Long!")
 		.required("Required"),
 	number: Yup.string().min(8, "Too Short!").max(50, "Too Long!"),
 	email: Yup.string().email("Invalid email"),
+	category: Yup.string().required()
 });
 
-const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
+const ContactModal = ({ open, onClose, contactId, initialValues, onSave}) => {
 	const classes = useStyles();
 	const isMounted = useRef(true);
 
@@ -69,15 +88,38 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 		name: "",
 		number: "",
 		email: "",
+		origem: "",
+		origensId: "",
+		receivePendency: false,
+		receiveCritical: false,
+		receiveReview: false,
+		category: "other",
+		specialty: "",
+		extraInfo: []
 	};
 
+
 	const [contact, setContact] = useState(initialState);
+	const [origens, setOrigens] = useState([]);
+
 
 	useEffect(() => {
 		return () => {
 			isMounted.current = false;
 		};
 	}, []);
+
+	useEffect(()=>{
+		const fetchOrigens = async () => {
+			try{
+				const {data} = await api.get("/origens/all");
+				setOrigens(data);
+			} catch (err){
+				toastError(err);
+			}
+		};
+		fetchOrigens();
+	},[]);
 
 	useEffect(() => {
 		const fetchContact = async () => {
@@ -110,12 +152,58 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 	const handleSaveContact = async values => {
 		try {
 			if (contactId) {
-				await api.put(`/contacts/${contactId}`, values);
+
+				let dados = {...contact, extraInfo: values.extraInfo};
+				
+				if(dados.category === "customer"){
+					dados.specialty = "";
+				}
+
+				if(dados.category === "medic"){
+					dados.origensId = null;
+					dados.receiveCritical = false;
+					dados.receivePendency = false;
+					dados.receiveReview = false;
+				}
+				
+				if(dados.category === "other"){
+					dados.specialty = "";
+					dados.origensId = null;
+					dados.receiveCritical = false;
+					dados.receivePendency = false;
+					dados.receiveReview = false;
+				}
+
+				await api.put(`/contacts/${contactId}`, dados);
+				onSave();
 				handleClose();
 			} else {
-				const { data } = await api.post("/contacts", values);
+
+				let dados = {...contact, extraInfo: values.extraInfo};
+				
+				if(dados.category === "customer"){
+					dados.specialty = "";
+				}
+
+				if(dados.category === "medic"){
+					dados.origensId = null;
+					dados.receiveCritical = false;
+					dados.receivePendency = false;
+					dados.receiveReview = false;
+				}
+				
+				if(dados.category === "other"){
+					dados.specialty = "";
+					dados.origensId = null;
+					dados.receiveCritical = false;
+					dados.receivePendency = false;
+					dados.receiveReview = false;
+				}
+
+				// setContact((prev) => ({...prev, extraInfo: values.extraInfo}));
+				const { data } = await api.post("/contacts", dados);
 				if (onSave) {
-					onSave(data);
+					onSave();
 				}
 				handleClose();
 			}
@@ -125,9 +213,19 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 		}
 	};
 
+	const handleOnChangeOrigen = (value) => {
+		// console.log(value);
+		if(value === null){
+			setContact(prev => ({ ...prev, origensId: null }));
+		}else{
+			setContact(prev => ({ ...prev, origensId: value.id }));
+		}
+	}
+
+
 	return (
 		<div className={classes.root}>
-			<Dialog open={open} onClose={handleClose} maxWidth="lg" scroll="paper">
+			<Dialog open={open} onClose={handleClose} maxWidth="xl" scroll="paper">
 				<DialogTitle id="form-dialog-title">
 					{contactId
 						? `${i18n.t("contactModal.title.edit")}`
@@ -145,44 +243,188 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 					}}
 				>
 					{({ values, errors, touched, isSubmitting }) => (
-						<Form>
+						<Form style={{width: "600px"}}>
 							<DialogContent dividers>
 								<Typography variant="subtitle1" gutterBottom>
 									{i18n.t("contactModal.form.mainInfo")}
 								</Typography>
-								<Field
-									as={TextField}
-									label={i18n.t("contactModal.form.name")}
-									name="name"
-									autoFocus
-									error={touched.name && Boolean(errors.name)}
-									helperText={touched.name && errors.name}
-									variant="outlined"
-									margin="dense"
-									className={classes.textField}
-								/>
-								<Field
-									as={TextField}
-									label={i18n.t("contactModal.form.number")}
-									name="number"
-									error={touched.number && Boolean(errors.number)}
-									helperText={touched.number && errors.number}
-									placeholder="5513912344321"
-									variant="outlined"
-									margin="dense"
-								/>
+								
+								<div>
+									<Field
+										as={TextField}
+										label={i18n.t("contactModal.form.name")}
+										name="name"
+										fullWidth
+										autoFocus
+										value={contact.name}
+										onChange={(e) => setContact(prev => ({ ...prev, name: e.target.value }))}
+										error={touched.name && Boolean(errors.name)}
+										helperText={touched.name && errors.name}
+										variant="outlined"
+										margin="dense"
+										disabled={contact.isGroup}
+										className={classes.textField}
+									/>
+								</div>
+								<div>
+									<Field
+										as={TextField}
+										label={i18n.t("contactModal.form.number")}
+										name="number"
+										value={contact.number}
+										onChange={(e) => setContact(prev => ({ ...prev, number: e.target.value }))}
+										fullWidth
+										error={touched.number && Boolean(errors.number)}
+										helperText={touched.number && errors.number}
+										placeholder="5513912344321"
+										variant="outlined"
+										margin="dense"
+										disabled={contact.isGroup}
+									/>
+								</div>
+								
 								<div>
 									<Field
 										as={TextField}
 										label={i18n.t("contactModal.form.email")}
 										name="email"
+										value={contact.email}
+										onChange={(e) => setContact(prev => ({ ...prev, email: e.target.value }))}
 										error={touched.email && Boolean(errors.email)}
 										helperText={touched.email && errors.email}
-										placeholder="Email address"
+										placeholder="Endereço de E-mail"
 										fullWidth
 										margin="dense"
 										variant="outlined"
+										disabled={contact.isGroup}
 									/>
+								</div>
+								
+								<FormControl
+										variant="outlined"
+										className={classes.formControl}
+										margin="dense"
+									>
+
+									<InputLabel id="profile-selection-input-label">
+										{i18n.t("contactModal.form.category")}
+									</InputLabel>
+
+									<Field
+										as={Select}
+										label={i18n.t("contactModal.form.category")}
+										name="category"
+										labelId="category-selection-label"
+										id="category-selection"
+										value={contact.category}
+										onChange={(e,newValue) => setContact(prev => ({ ...prev, category: e.target.value }))}
+									>
+										<MenuItem value="medic">Médico</MenuItem>
+										<MenuItem value="customer">Cliente</MenuItem>
+										<MenuItem value="other">Outro</MenuItem>
+									</Field>
+								</FormControl>
+								{ contact.category === "medic" &&
+								<FormControl
+										variant="outlined"
+										className={classes.formControl}
+										margin="dense"
+									>
+
+									<InputLabel id="specialty-selection-input-label">
+										{i18n.t("contactModal.form.specialty")}
+									</InputLabel>
+
+									<Field
+										as={Select}
+										label={i18n.t("contactModal.form.specialty")}
+										name="specialty"
+										labelId="specialty-selection-label"
+										id="specialty-selection"
+										value={contact.specialty}
+										onChange={(e) => setContact(prev => ({ ...prev, specialty: e.target.value }))}
+									>
+										<MenuItem value="Corpo">Corpo</MenuItem>
+										<MenuItem value="Neuro">Neuro</MenuItem>
+										<MenuItem value="Raio X">Raio X</MenuItem>
+										<MenuItem value="Músculo Esquelético">Músculo Esquelético</MenuItem>
+										<MenuItem value="Densitometria">Densitometria</MenuItem>
+										<MenuItem value="Mamografia">Mamografia</MenuItem>
+										<MenuItem value="Geral">Geral</MenuItem>
+										<MenuItem value="Cardio">Cardio</MenuItem>
+										<MenuItem value="Mama">Mama</MenuItem>
+									</Field>
+								</FormControl>
+								}
+
+								{ contact.category === "customer" &&
+								<div>
+									<FormControl
+											variant="outlined"
+											className={classes.formControl}
+											margin="dense"
+										>
+										<Autocomplete
+											fullWidth
+											options={origens}
+											clearOnBlur
+											autoHighlight
+											freeSolo
+											clearOnEscape
+											onChange={(e,value) => handleOnChangeOrigen(value)}
+											defaultValue={origens.find(origen => origen.id === contact.origensId)}
+											getOptionLabel={(option) => option.name}
+											renderInput={params => (
+												<TextField {...params} label="Origem" variant="outlined" />
+											)}
+										/>
+									</FormControl>
+								</div>
+								}
+								<div>
+								{contact.category === "customer" &&
+									<Grid spacing={2} container>
+										<Grid xs={12} md={12} item>
+											<FormControlLabel
+												control={
+												<Field
+													as={Switch}
+													color="primary"
+													name="isDefault"
+													onClick={(e) => setContact(prev => ({ ...prev, receivePendency: !contact.receivePendency }))}
+													checked={contact.receivePendency}
+												/>
+												}
+												label="Pendências"
+											/>
+											<FormControlLabel
+												control={
+												<Field
+													as={Switch}
+													color="primary"
+													name="isDefault"
+													onClick={(e) => setContact(prev => ({ ...prev, receiveReview: !contact.receiveReview }))}
+													checked={contact.receiveReview}
+												/>
+												}
+												label="Revisões"
+											/>
+											<FormControlLabel
+												control={
+												<Field
+													as={Switch}
+													color="primary"
+													name="isDefault"
+													onClick={(e) => setContact(prev => ({ ...prev, receiveCritical: !contact.receiveCritical }))}
+													checked={contact.receiveCritical}
+												/>
+												}
+												label="Achados Críticos"
+											/>
+
+										</Grid>
+									</Grid>
+								}
 								</div>
 								<Typography
 									style={{ marginBottom: 8, marginTop: 12 }}
@@ -238,6 +480,7 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 										</>
 									)}
 								</FieldArray>
+
 							</DialogContent>
 							<DialogActions>
 								<Button
@@ -266,6 +509,7 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 									)}
 								</Button>
 							</DialogActions>
+							
 						</Form>
 					)}
 				</Formik>

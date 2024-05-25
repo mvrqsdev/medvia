@@ -19,7 +19,6 @@ import UserRating from "../models/UserRating";
 import QueueOption from "../models/QueueOption";
 import Schedule from "../models/Schedule";
 import Tag from "../models/Tag";
-import Origem from "../models/Origem";
 import TicketTag from "../models/TicketTag";
 import ContactList from "../models/ContactList";
 import ContactListItem from "../models/ContactListItem";
@@ -34,6 +33,8 @@ import ChatMessage from "../models/ChatMessage";
 import Invoices from "../models/Invoices";
 import Subscriptions from "../models/Subscriptions";
 import BaileysChats from "../models/BaileysChats";
+import Origen from "../models/Origen";
+import Exam from "../models/Exam";
 
 
 // eslint-disable-next-line
@@ -63,7 +64,6 @@ const models = [
   QueueOption,
   Schedule,
   Tag,
-  Origem,
   TicketTag,
   ContactList,
   ContactListItem,
@@ -77,7 +77,9 @@ const models = [
   ChatMessage,
   Invoices,
   Subscriptions,
-  BaileysChats
+  BaileysChats,
+  Origen,
+  Exam
 ];
 
 sequelize.addModels(models);

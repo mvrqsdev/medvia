@@ -33,7 +33,7 @@ export const createSubscription = async (
   });
 
   if (!(await schema.isValid(req.body))) {
-    console.log("Erro linha 32")
+    //console.log("Erro linha 32")
     throw new AppError("Validation fails", 400);
   }
 
@@ -105,7 +105,7 @@ export const createSubscription = async (
 
     });
   } catch (error) {
-    console.log(error);
+    //console.log(error);
     throw new AppError("Validation fails", 400);
   }
 };
@@ -138,7 +138,7 @@ export const createWebhook = async (
     const create = await gerencianet.pixConfigWebhook(params, body);
     return res.json(create);
   } catch (error) {
-    console.log(error);
+    //console.log(error);
   }
 };
 

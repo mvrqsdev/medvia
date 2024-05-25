@@ -84,7 +84,7 @@ const MessagesAPI = () => {
     
     
     axios.request(options).then(function (response) {
-      console.log(response.data)
+      //console.log(response.data)
       toast.success('Grupos obtidos com sucesso');
     }).catch(function (error) {
       toastError(error);
@@ -102,7 +102,7 @@ const MessagesAPI = () => {
     
     
     axios.request(options).then(function (response) {
-      console.log(response.data)
+      //console.log(response.data)
       toast.success('Usuários obtidos com sucesso');
     }).catch(function (error) {
       toastError(error);
@@ -110,7 +110,7 @@ const MessagesAPI = () => {
   }
   const handleSendTextMessageGroup = async (values) => {
     const { number, body, isGroup } = values;
-    console.log(isGroup);
+    //console.log(isGroup);
 
     const data = { number, body , isGroup};
     var options = {
@@ -243,7 +243,7 @@ const MessagesAPI = () => {
         enableReinitialize={true}
         onSubmit={(values, actions) => {
           setTimeout(async () => {
-            console.log(values, file)
+            //console.log(values, file)
             await handleSendMediaMessage(values);
             actions.setSubmitting(false);
             actions.resetForm()

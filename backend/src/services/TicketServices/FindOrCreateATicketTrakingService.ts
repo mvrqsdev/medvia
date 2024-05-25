@@ -17,6 +17,7 @@ const FindOrCreateATicketTrakingService = async ({
   const ticketTraking = await TicketTraking.findOne({
     where: {
       ticketId,
+      whatsappId,
       finishedAt: {
         [Op.is]: null
       }

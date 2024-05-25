@@ -4,7 +4,7 @@ import { useParams, useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
 import clsx from "clsx";
 
-import { Paper, makeStyles } from "@material-ui/core";
+import { Paper, makeStyles, Chip } from "@material-ui/core";
 
 import ContactDrawer from "../ContactDrawer";
 import MessageInput from "../MessageInputCustom/";
@@ -68,6 +68,8 @@ const Ticket = () => {
   const [contact, setContact] = useState({});
   const [ticket, setTicket] = useState({});
 
+
+
   useEffect(() => {
     setLoading(true);
     const delayDebounceFn = setTimeout(() => {
@@ -78,11 +80,7 @@ const Ticket = () => {
           const { queues, profile } = user;
 
           const queueAllowed = queues.find((q) => q.id === queueId);
-          if (queueAllowed === undefined && profile !== "admin") {
-            toast.error("Acesso não permitido");
-            history.push("/tickets");
-            return;
-          }
+
 
           setContact(data.contact);
           setTicket(data);
@@ -141,11 +139,12 @@ const Ticket = () => {
   const renderTicketInfo = () => {
     if (ticket.user !== undefined) {
       return (
-        <TicketInfo
-          contact={contact}
-          ticket={ticket}
-          onClick={handleDrawerOpen}
-        />
+          <TicketInfo
+            contact={contact}
+            ticket={ticket}
+            onClick={handleDrawerOpen}
+          />
+
       );
     }
   };
@@ -173,9 +172,12 @@ const Ticket = () => {
         })}
       >
         <TicketHeader loading={loading}>
-          {renderTicketInfo()}
+          <div>
+            {renderTicketInfo()}
+          </div>
           <TicketActionButtons ticket={ticket} />
         </TicketHeader>
+        
         <Paper>
           <TagsContainer ticket={ticket} />
         </Paper>

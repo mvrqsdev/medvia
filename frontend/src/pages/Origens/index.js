@@ -1,78 +1,80 @@
-import React, {
-  useState,
-  useEffect,
-  useReducer,
-  useCallback,
-  useContext,
-} from "react";
+import React, { useState, useEffect, useReducer, useContext } from "react";
+
 import { toast } from "react-toastify";
+import { useHistory } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
 import TableHead from "@material-ui/core/TableHead";
 import TableRow from "@material-ui/core/TableRow";
-import IconButton from "@material-ui/core/IconButton";
+import Paper from "@material-ui/core/Paper";
+import Button from "@material-ui/core/Button";
+import Avatar from "@material-ui/core/Avatar";
+import WhatsAppIcon from "@material-ui/icons/WhatsApp";
 import SearchIcon from "@material-ui/icons/Search";
 import TextField from "@material-ui/core/TextField";
+import Chip from "@material-ui/core/Chip";
 import InputAdornment from "@material-ui/core/InputAdornment";
 
+import IconButton from "@material-ui/core/IconButton";
 import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
 import EditIcon from "@material-ui/icons/Edit";
 
-import MainContainer from "../../components/MainContainer";
-import MainHeader from "../../components/MainHeader";
-import MainHeaderButtonsWrapper from "../../components/MainHeaderButtonsWrapper";
-import Title from "../../components/Title";
-
 import api from "../../services/api";
-import { i18n } from "../../translate/i18n";
 import TableRowSkeleton from "../../components/TableRowSkeleton";
-import OrigemModal from "../../components/OrigemModal";
+import OrigenModal from "../../components/OrigenModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
+
+import { i18n } from "../../translate/i18n";
+import MainHeader from "../../components/MainHeader";
+import Title from "../../components/Title";
+import MainHeaderButtonsWrapper from "../../components/MainHeaderButtonsWrapper";
+import MainContainer from "../../components/MainContainer";
 import toastError from "../../errors/toastError";
-import { Chip } from "@material-ui/core";
-import { socketConnection } from "../../services/socket";
 import { AuthContext } from "../../context/Auth/AuthContext";
+import { Can } from "../../components/Can";
+import NewTicketModal from "../../components/NewTicketModal";
+import { socketConnection } from "../../services/socket";
+
+import {CSVLink} from "react-csv";
 
 const reducer = (state, action) => {
-  if (action.type === "LOAD_ORIGEMS") {
+  if (action.type === "LOAD_ORIGENS") {
     const origens = action.payload;
     const newOrigens = [];
 
-    origens.forEach((origem) => {
-      const origemIndex = state.findIndex((s) => s.id === origem.id);
-      if (origemIndex !== -1) {
-        state[origemIndex] = origem;
+    origens.forEach((origen) => {
+      const origenIndex = state.findIndex((o) => o.id === origen.id);
+      if (origenIndex !== -1) {
+        state[origenIndex] = origen;
       } else {
-        newOrigens.push(origem);
+        newOrigens.push(origen);
       }
     });
 
     return [...state, ...newOrigens];
   }
 
-  if (action.type === "UPDATE_ORIGEMS") {
-    const origem = action.payload;
-    const origemIndex = state.findIndex((s) => s.id === origem.id);
+  if (action.type === "UPDATE_ORIGENS") {
+    const origen = action.payload;
+    const origenIndex = state.findIndex((o) => o.id === origen.id);
 
-    if (origemIndex !== -1) {
-      state[origemIndex] = origem;
+    if (origenIndex !== -1) {
+      state[origenIndex] = origen;
       return [...state];
     } else {
-      return [origem, ...state];
+      return [origen, ...state];
     }
   }
 
-  if (action.type === "DELETE_ORIGEM") {
-    const origemId = action.payload;
+  if (action.type === "DELETE_ORIGEN") {
+    const origenId = action.payload;
 
-    const origemIndex = state.findIndex((s) => s.id === origemId);
-    if (origemIndex !== -1) {
-      state.splice(origemIndex, 1);
+    const origenIndex = state.findIndex((o) => o.id === origenId);
+    if (origenIndex !== -1) {
+      state.splice(origenIndex, 1);
     }
     return [...state];
   }
@@ -82,43 +84,36 @@ const reducer = (state, action) => {
   }
 };
 
+
 const useStyles = makeStyles((theme) => ({
   mainPaper: {
     flex: 1,
-    padding: theme.spacing(1),
+    padding: theme.spacing(2),
+    margin: theme.spacing(1),
     overflowY: "scroll",
     ...theme.scrollbarStyles,
-  },
+  }
 }));
 
 const Origens = () => {
   const classes = useStyles();
+  const history = useHistory();
 
   const { user } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [selectedOrigem, setSelectedOrigem] = useState(null);
-  const [deletingOrigem, setDeletingOrigem] = useState(null);
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [searchParam, setSearchParam] = useState("");
   const [origens, dispatch] = useReducer(reducer, []);
-  const [origemModalOpen, setorigemModalOpen] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [deletingOrigen, setDeletingOrigen] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const fetchOrigems = useCallback(async () => {
-    try {
-      const { data } = await api.get("/origem/", {
-        params: { searchParam, pageNumber },
-      });
-      console.log(data)
-      dispatch({ type: "LOAD_ORIGEMS", payload: data.origens });
-      setHasMore(data.hasMore);
-      setLoading(false);
-    } catch (err) {
-      toastError(err);
-    }
-  }, [searchParam, pageNumber]);
+
+  const [selectedOrigenId, setSelectedOrigenId] = useState(null);
+
+
+  const [origenModalOpen, setOrigenModalOpen] = useState(false);
 
   useEffect(() => {
     dispatch({ type: "RESET" });
@@ -128,63 +123,46 @@ const Origens = () => {
   useEffect(() => {
     setLoading(true);
     const delayDebounceFn = setTimeout(() => {
-      fetchOrigems();
+      const fetchOrigens = async () => {
+        try {
+          const { data } = await api.get("/origens/", {
+            params: { searchParam, pageNumber },
+          });
+          dispatch({ type: "LOAD_ORIGENS", payload: data.origens });
+          setHasMore(data.hasMore);
+          setLoading(false);
+        } catch (err) {
+          toastError(err);
+        }
+      };
+      fetchOrigens();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchParam, pageNumber, fetchOrigems]);
+  }, [searchParam, pageNumber]);
 
   useEffect(() => {
-    const socket = socketConnection({ companyId: user.companyId });
+    const companyId = localStorage.getItem("companyId");
+    const socket = socketConnection({ companyId });
 
-    socket.on("user", (data) => {
+    socket.on(`company-${companyId}-origen`, (data) => {
       if (data.action === "update" || data.action === "create") {
-        dispatch({ type: "UPDATE_ORIGEMS", payload: data.origens });
+        dispatch({ type: "UPDATE_ORIGENS", payload: data.origen });
       }
 
       if (data.action === "delete") {
-        dispatch({ type: "DELETE_USER", payload: +data.origemId });
+        dispatch({ type: "DELETE_ORIGEN", payload: +data.origenId });
       }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [user]);
-
-  const handleOpenOrigemModal = () => {
-    setSelectedOrigem(null);
-    setorigemModalOpen(true);
-  };
-
-  const handleCloseOrigemModal = () => {
-    setSelectedOrigem(null);
-    setorigemModalOpen(false);
-  };
+  }, []);
 
   const handleSearch = (event) => {
     setSearchParam(event.target.value.toLowerCase());
   };
 
-  const handleEditOrigem = (origem) => {
-    setSelectedOrigem(origem);
-    setorigemModalOpen(true);
-  };
-
-  const handleDeleteOrigem = async (origemId) => {
-    try {
-      await api.delete(`/origem/${origemId}`);
-      toast.success(i18n.t("origem.toasts.deleted"));
-    } catch (err) {
-      toastError(err);
-    }
-    setDeletingOrigem(null);
-    setSearchParam("");
-    setPageNumber(1);
-
-    dispatch({ type: "RESET" });
-    setPageNumber(1);
-    await fetchOrigems();
-  };
 
   const loadMore = () => {
     setPageNumber((prevState) => prevState + 1);
@@ -198,39 +176,85 @@ const Origens = () => {
     }
   };
 
+
+  const hadleEditOrigen = (contactId) => {
+    setSelectedOrigenId(contactId);
+    setOrigenModalOpen(true);
+  };
+
+  const handleOpenOrigenModal = () => {
+    setSelectedOrigenId(null);
+    setOrigenModalOpen(true);
+  };
+
+  const handleCloseOrigenModal = () => {
+    setSelectedOrigenId(null);
+    setOrigenModalOpen(false);
+  };
+
+
+  const handleDeleteOrigen = async () => {
+    if(!deletingOrigen) return;
+
+    try {
+      await api.delete(`/origens/${deletingOrigen.id}`);
+      toast.success(`${deletingOrigen.name} deletado com sucesso.`);
+    } catch (err) {
+      toastError(err);
+    }
+    setDeletingOrigen(null);
+    setSearchParam("");
+    setPageNumber(1);
+  };
+
+
+
   return (
-    <MainContainer>
+    <MainContainer className={classes.mainContainer}>
       <ConfirmationModal
-        title={deletingOrigem && "Excluir Origem ?"}
-        open={confirmModalOpen}
-        onClose={setConfirmModalOpen}
-        onConfirm={() => handleDeleteOrigem(deletingOrigem.id)}
+        title="Deletar Origem ?"
+        open={confirmOpen}
+        onClose={setConfirmOpen}
+        onConfirm={handleDeleteOrigen}
       >
-         Você esta excluindo esta origem
+        Deseja deletar a Origem {deletingOrigen ? deletingOrigen.name : ""}
       </ConfirmationModal>
-      <OrigemModal
-        open={origemModalOpen}
-        onClose={handleCloseOrigemModal}
-        reload={fetchOrigems}
-        aria-labelledby="form-dialog-title"
-        origemId={selectedOrigem && selectedOrigem.id}
+      <OrigenModal
+      open={origenModalOpen}
+      onClose={handleCloseOrigenModal}
+      aria-labelledby="form-dialog-title"
+      origenId={selectedOrigenId}
       />
       <MainHeader>
-        <Title>Médicos</Title>
+        <Title>Origens</Title>
         <MainHeaderButtonsWrapper>
           <TextField
             placeholder={i18n.t("contacts.searchPlaceholder")}
             type="search"
             value={searchParam}
             onChange={handleSearch}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon style={{ color: "gray" }} />
+                </InputAdornment>
+              ),
+            }}
           />
           <Button
             variant="contained"
             color="primary"
-            onClick={handleOpenOrigemModal}
+            onClick={handleOpenOrigenModal}
           >
-            Novo Médico
+            ADICIONAR ORIGENS
           </Button>
+
+         {/* <CSVLink style={{ textDecoration:'none'}} separator=";" filename={'contatos.csv'} data={contacts.map((contact) => ({ name: contact.name, number: contact.number, email: contact.email }))}>
+          <Button	variant="contained" color="primary"> 
+          EXPORTAR CONTATOS 
+          </Button>
+          </CSVLink> */}
+
         </MainHeaderButtonsWrapper>
       </MainHeader>
       <Paper
@@ -241,44 +265,53 @@ const Origens = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell align="center">Nome do Médico</TableCell>
+              <TableCell>{i18n.t("contacts.table.name")}</TableCell>
+              <TableCell>Tipo</TableCell>
+              <TableCell>Prioridade</TableCell>
+              <TableCell>Observação</TableCell>
               <TableCell align="center">
-                CRM/UF
-              </TableCell>
-              <TableCell align="center">
-                Disponíbilidade
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("origem.table.actions")}
+                {i18n.t("contacts.table.actions")}
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             <>
-              {origens.map((origem) => (
-                <TableRow key={origem.id}>
+              {origens.map((origen) => (
+                <TableRow key={origen.id}>
+                  <TableCell>{origen.name}</TableCell>
+                  <TableCell>{origen.type}</TableCell>
+                  <TableCell>{origen.priority}</TableCell>
+                  <TableCell>{origen.observation}</TableCell>
                   <TableCell align="center">
-                    {origem.name}
-                  </TableCell>
-                  <TableCell align="center">{origem.isWhatsApp ? "Externo" : "Interno"}</TableCell>
-                  <TableCell align="center">
-                    <IconButton size="small" onClick={() => handleEditOrigem(origem)}>
-                      <EditIcon />
-                    </IconButton>
-
                     <IconButton
                       size="small"
-                      onClick={(e) => {
-                        setConfirmModalOpen(true);
-                        setDeletingOrigem(origem);
-                      }}
+                      
                     >
-                      <DeleteOutlineIcon />
+                      <EditIcon
+                        onClick={() => hadleEditOrigen(origen.id)}
+                      />
                     </IconButton>
+                    <Can
+                      role={user.profile}
+                      perform="contacts-page:deleteContact"
+                      yes={() => (
+                        <IconButton
+                          size="small"
+                          
+                        >
+                          <DeleteOutlineIcon
+                            onClick={(e) => {
+                              setConfirmOpen(true);
+                              setDeletingOrigen(origen)
+                            }}
+                          />
+                        </IconButton>
+                      )}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
-              {loading && <TableRowSkeleton columns={3} />}
+              {loading && <TableRowSkeleton avatar columns={3} />}
             </>
           </TableBody>
         </Table>

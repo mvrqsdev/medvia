@@ -86,7 +86,7 @@ const WhatsAppModal = ({ open, onClose, whatsAppId }) => {
 
       try {
         const { data } = await api.get(`whatsapp/${whatsAppId}?session=0`);
-        console.log(data)
+        //console.log(data)
         setWhatsApp(data);
 
         const whatsQueueIds = data.queues?.map((queue) => queue.id);

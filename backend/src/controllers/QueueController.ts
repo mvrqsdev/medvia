@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { getIO } from "../libs/socket";
+import WhatsApp from "../models/Whatsapp";
+import WhatsappQueue from "../models/WhatsappQueue";
 import CreateQueueService from "../services/QueueService/CreateQueueService";
 import DeleteQueueService from "../services/QueueService/DeleteQueueService";
 import ListQueuesService from "../services/QueueService/ListQueuesService";
@@ -55,6 +57,32 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
   const queue = await ShowQueueService(queueId, companyId);
 
   return res.status(200).json(queue);
+};
+
+export const queueByWhatsApp = async (req: Request, res: Response): Promise<Response> => {
+  const { queueId } = req.params;
+  const { companyId } = req.user;
+  let whatsapps = [];
+
+  if(!queueId){
+    throw new Error("Precisa fornecer um queueId");
+  }
+
+  const whatsappsQueues = await WhatsappQueue.findAll({where: {queueId: queueId}});
+
+  if(!whatsappsQueues){
+    throw new Error("Nenhum whatsappQueues encontrado");
+  }
+
+  for(const queue of whatsappsQueues){
+    const whatsapp = await WhatsApp.findOne({where: {id: queue.whatsappId}});
+    if(whatsapp){
+      whatsapps.push(whatsapp);
+    }
+  }
+
+
+  return res.status(200).json(whatsapps);
 };
 
 export const update = async (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 import "react-toastify/dist/ReactToastify.css";
+import "./styles/tailwind.css";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import { ptBR } from "@material-ui/core/locale";

@@ -27,7 +27,10 @@ import chatRoutes from "./chatRoutes";
 import invoiceRoutes from "./invoicesRoutes";
 import subscriptionRoutes from "./subScriptionRoutes";
 import ticketTagRoutes from "./ticketTagRoutes";
-import origemRoutes from "./origemRoutes";
+import groupRoutes from "./groupRoutes";
+import apiRoutes from "./apiRoutes";
+import origenRoutes from "./origenRoutes";
+import examRoutes from "./examRoutes";
 
 const routes = Router();
 
@@ -50,7 +53,6 @@ routes.use(dashboardRoutes);
 routes.use(queueOptionRoutes);
 routes.use(scheduleRoutes);
 routes.use(tagRoutes);
-routes.use(origemRoutes);
 routes.use(contactListRoutes);
 routes.use(contactListItemRoutes);
 routes.use(campaignRoutes);
@@ -60,5 +62,9 @@ routes.use(chatRoutes);
 routes.use(subscriptionRoutes);
 routes.use(invoiceRoutes);
 routes.use(ticketTagRoutes);
+routes.use(groupRoutes);
+routes.use(apiRoutes);
+routes.use(origenRoutes);
+routes.use(examRoutes);
 
 export default routes;

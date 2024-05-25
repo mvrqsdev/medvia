@@ -5,13 +5,15 @@ import MenuItem from "@material-ui/core/MenuItem";
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import ConfirmationModal from "../ConfirmationModal";
+import ToFowardModal from "../ToFowardModal";
 import { Menu } from "@material-ui/core";
 import { ReplyMessageContext } from "../../context/ReplyingMessage/ReplyingMessageContext";
 import toastError from "../../errors/toastError";
 
-const MessageOptionsMenu = ({ message, menuOpen, handleClose, anchorEl }) => {
+const MessageOptionsMenu = ({ticket, message, menuOpen, handleClose, anchorEl }) => {
 	const { setReplyingMessage } = useContext(ReplyMessageContext);
 	const [confirmationOpen, setConfirmationOpen] = useState(false);
+	const [toFowardModalOpen, setToFowardModalOpen] = useState(false);
 
 	const handleDeleteMessage = async () => {
 		try {
@@ -25,6 +27,13 @@ const MessageOptionsMenu = ({ message, menuOpen, handleClose, anchorEl }) => {
 		setReplyingMessage(message);
 		handleClose();
 	};
+
+	const handleOpenToForwardModal = e => {
+		setToFowardModalOpen(true);
+	}
+	const handleCloseToForwardModal = e => {
+		setToFowardModalOpen(false);
+	}
 
 	const handleOpenConfirmationModal = e => {
 		setConfirmationOpen(true);
@@ -41,6 +50,10 @@ const MessageOptionsMenu = ({ message, menuOpen, handleClose, anchorEl }) => {
 			>
 				{i18n.t("messageOptionsMenu.confirmationModal.message")}
 			</ConfirmationModal>
+			<>
+
+			<ToFowardModal ticket={ticket} message={message} modalOpen={toFowardModalOpen} onClose={handleCloseToForwardModal}></ToFowardModal>
+			</>
 			<Menu
 				anchorEl={anchorEl}
 				getContentAnchorEl={null}
@@ -62,6 +75,9 @@ const MessageOptionsMenu = ({ message, menuOpen, handleClose, anchorEl }) => {
 				)}
 				<MenuItem onClick={hanldeReplyMessage}>
 					{i18n.t("messageOptionsMenu.reply")}
+				</MenuItem>
+				<MenuItem onClick={handleOpenToForwardModal}>
+					{i18n.t("messageOptionsMenu.toFoward")}
 				</MenuItem>
 			</Menu>
 		</>

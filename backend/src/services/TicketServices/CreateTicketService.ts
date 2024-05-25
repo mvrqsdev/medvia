@@ -2,6 +2,8 @@ import AppError from "../../errors/AppError";
 import CheckContactOpenTickets from "../../helpers/CheckContactOpenTickets";
 import GetDefaultWhatsApp from "../../helpers/GetDefaultWhatsApp";
 import Ticket from "../../models/Ticket";
+import { Op } from "sequelize";
+import Whatsapp from "../../models/Whatsapp";
 import ShowContactService from "../ContactServices/ShowContactService";
 import { getIO } from "../../libs/socket";
 
@@ -11,6 +13,7 @@ interface Request {
   userId: number;
   companyId: number;
   queueId?: number;
+  whatsappId: number;
 }
 
 const CreateTicketService = async ({
@@ -18,23 +21,49 @@ const CreateTicketService = async ({
   status,
   userId,
   queueId,
-  companyId
+  companyId,
+  whatsappId
 }: Request): Promise<Ticket> => {
-  const defaultWhatsapp = await GetDefaultWhatsApp(companyId);
+  
+  
+  const whatsapp = await Whatsapp.findOne({
+    where:{
+      id: whatsappId,
+      companyId: companyId
+    }
+  });
 
-  await CheckContactOpenTickets(contactId);
+  if(!whatsapp){
+    throw new Error("Nenhum whatsapp encontrado");
+  }
+
+  console.log("Achou o Wpp Create Ticket Service");
+  
+
+  const ticketFind = await Ticket.findOne({
+    where:{
+      contactId,
+      whatsappId: whatsapp.id,
+      status: { [Op.or]: ["open", "pending"] }  
+    }
+  });
+
+  if(ticketFind){
+    throw new AppError("ERR_OTHER_OPEN_TICKET");
+  }
 
   const { isGroup } = await ShowContactService(contactId, companyId);
 
   const [{ id }] = await Ticket.findOrCreate({
     where: {
       contactId,
-      companyId
+      companyId,
+      whatsappId
     },
     defaults: {
       contactId,
       companyId,
-      whatsappId: defaultWhatsapp.id,
+      whatsappId: whatsapp.id,
       status,
       isGroup,
       userId
@@ -42,7 +71,7 @@ const CreateTicketService = async ({
   });
 
   await Ticket.update(
-    { companyId, queueId, userId, whatsappId: defaultWhatsapp.id, status: "open" },
+    { companyId, queueId, userId, whatsappId: whatsapp.id, status: "open" },
     { where: { id } }
   );
 

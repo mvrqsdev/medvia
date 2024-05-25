@@ -222,7 +222,7 @@ const CampaignModal = ({
       }
       toast.success(i18n.t("campaigns.toasts.success"));
     } catch (err) {
-      console.log(err);
+      //console.log(err);
       toastError(err);
     }
   };

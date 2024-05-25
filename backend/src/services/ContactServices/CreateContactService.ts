@@ -11,24 +11,38 @@ interface Request {
   name: string;
   number: string;
   email?: string;
+  category?: string;
+  receiveCritical?: boolean;
+  receivePendency?: boolean;
+  receiveReview?: boolean;
   profilePicUrl?: string;
+  specialty?: string;
   companyId: number;
   extraInfo?: ExtraInfo[];
+  isGroup?: boolean;
+  origensId?: number;
 }
 
 const CreateContactService = async ({
   name,
   number,
   email = "",
+  category = "other",
+  receiveCritical = false,
+  receivePendency = false,
+  receiveReview = false,
+  specialty = "",
   companyId,
-  extraInfo = []
+  extraInfo = [],
+  isGroup = false,
+  origensId = null,
 }: Request): Promise<Contact> => {
   const numberExists = await Contact.findOne({
     where: { number, companyId }
   });
 
   if (numberExists) {
-    throw new AppError("ERR_DUPLICATED_CONTACT");
+    return;
   }
 
   const contact = await Contact.create(
@@ -37,7 +51,14 @@ const CreateContactService = async ({
       number,
       email,
       extraInfo,
-      companyId
+      companyId,
+      category,
+      receiveCritical,
+      receivePendency,
+      receiveReview,
+      specialty,
+      isGroup,
+      origensId
     },
     {
       include: ["extraInfo"]

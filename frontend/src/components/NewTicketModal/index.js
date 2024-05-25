@@ -32,6 +32,8 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 	const [searchParam, setSearchParam] = useState("");
 	const [selectedContact, setSelectedContact] = useState(null);
 	const [selectedQueue, setSelectedQueue] = useState("");
+	const [selectedWhatsApp, setSelectedWhatsApp] = useState("");
+	const [whatsapps, setWhatsApp] = useState([]);
 	const [newContact, setNewContact] = useState({});
 	const [contactModalOpen, setContactModalOpen] = useState(false);
 	const { user } = useContext(AuthContext);
@@ -68,6 +70,20 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 		return () => clearTimeout(delayDebounceFn);
 	}, [searchParam, modalOpen]);
 
+	const handleSelectedQueue = async (queue) => {
+		setSelectedQueue(queue);
+		setSelectedWhatsApp("");
+		setWhatsApp([]);
+
+		try{
+			const {data} = await api.get("/queuewhatsapp/"+queue);
+			setWhatsApp(data);
+
+		} catch (err){
+			toastError(err);
+		}
+	};
+
 	const handleClose = () => {
 		onClose();
 		setSearchParam("");
@@ -76,8 +92,13 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 
 	const handleSaveTicket = async contactId => {
 		if (!contactId) return;
-		if (selectedQueue === "" && user.profile !== 'admin') {
+		if (selectedQueue === "") {
 			toast.error("Selecione uma fila");
+			return;
+		}
+
+		if (selectedWhatsApp === "") {
+			toast.error("Selecione um telefone");
 			return;
 		}
 		setLoading(true);
@@ -88,6 +109,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 				queueId,
 				userId: user.id,
 				status: "open",
+				whatsappId: selectedWhatsApp
 			});
 			onClose(ticket);
 		} catch (err) {
@@ -211,9 +233,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 								displayEmpty
 								variant="outlined"
 								value={selectedQueue}
-								onChange={(e) => {
-									setSelectedQueue(e.target.value)
-								}}
+								onChange={(e) => handleSelectedQueue(e.target.value)}
 								MenuProps={{
 									anchorOrigin: {
 										vertical: "bottom",
@@ -239,6 +259,43 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 											<ListItemText primary={queue.name} />
 										</MenuItem>
 									))}
+							</Select>
+						</Grid>
+						<Grid xs={12} item>
+							<Select
+								fullWidth
+								displayEmpty
+								variant="outlined"
+								value={selectedWhatsApp}
+								onChange={(e) => setSelectedWhatsApp(e.target.value)}
+								MenuProps={{
+									anchorOrigin: {
+										vertical: "bottom",
+										horizontal: "left",
+									},
+									transformOrigin: {
+										vertical: "top",
+										horizontal: "left",
+									},
+									getContentAnchorEl: null,
+								}}
+								renderValue={() => {
+									if (selectedWhatsApp === "") {
+										return "Selecione um WhatsApp"
+									}
+									const whatsapp = whatsapps.find(w => w.id === selectedWhatsApp);
+									return whatsapp.name;
+								}}
+							>
+								{whatsapps.length > 0 &&
+									whatsapps.map((whatsapp, key) => (
+										<MenuItem dense key={key} value={whatsapp.id}>
+											<ListItemText primary={whatsapp.name} />
+										</MenuItem>
+									)
+								)
+									
+								}
 							</Select>
 						</Grid>
 					</Grid>

@@ -324,7 +324,7 @@ function Chat(props) {
       const { data } = await api.get("/chats");
       return data;
     } catch (err) {
-      console.log(err);
+      //console.log(err);
     }
   };
 

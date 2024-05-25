@@ -161,13 +161,6 @@ const TicketsManagerTabs = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
 
   useEffect(() => {
-    if (user.profile.toUpperCase() === "ADMIN") {
-      setShowAllTickets(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     if (tab === "search") {
       searchInputRef.current.focus();
     }
@@ -227,7 +220,7 @@ const TicketsManagerTabs = () => {
       <NewTicketModal
         modalOpen={newTicketModalOpen}
         onClose={(ticket) => {
-          console.log("ticket", ticket);
+          //console.log("ticket", ticket);
           handleCloseOrOpenTicket(ticket);
         }}
       />
